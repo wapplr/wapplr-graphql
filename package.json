@@ -1,0 +1,39 @@
+{
+    "name": "wapplr-graphql",
+    "description": "GraphQl extension for Wapplr",
+    "license": "MIT",
+    "dependencies": {
+        "graphql": "^15.4.0",
+        "express-graphql": "^0.11.0",
+        "graphql-compose": "^7.22.1",
+        "graphql-compose-mongoose": "^9.0.0",
+        "wapplr": "^1.0.0"
+    },
+    "devDependencies": {
+        "wapplr-cli": "^1.0.0"
+    },
+    "engines": {
+        "node": ">=12.0.0"
+    },
+    "browserslist": [
+        ">1%",
+        "last 4 versions",
+        "Firefox ESR",
+        "not ie < 9"
+    ],
+    "scripts": {
+        "wapplr-graphql start": "wapplr-cli start",
+        "wapplr-graphql build": "wapplr-cli build",
+        "wapplr-graphql clean": "wapplr-cli clean"
+    },
+    "version": "1.0.0",
+    "files": [
+        "dist/*"
+    ],
+    "main": "dist/server",
+    "browser": "dist/client",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/wapplr/wapplr-graphql.git"
+    }
+}
