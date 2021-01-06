@@ -4,10 +4,12 @@ This package is the [GraphQl](https://github.com/graphql) extension for [Wapplr]
 
 ```js
 //server.js
-import wapplrGraphql from "wapplr-graphql";
+import wapplrGraphql, {createMiddleware as createWapplrGraphqlMiddleware} from "wapplr-graphql";
 import wapplrServer from "wapplr";
+
 const wapp = wapplrServer({config: {
         server: {
+            disableUseDefaultMiddlewares: true,
             graphqlConfig: {
                 graphqlRoute: "/graphql",
             }
@@ -18,8 +20,22 @@ const wapp = wapplrServer({config: {
         }
     }
 });
-await wapplrGraphql({wapp});
+
+wapplrGraphql({wapp});
+
+const app = wapp.server.app;
+
+app.use([
+    wapp.server.middlewares.wapp,
+    wapp.server.middlewares.static,
+    createWapplrGraphqlMiddleware({wapp}),
+    ...Object.keys(wapp.server.middlewares).map(function (key){
+        return (key === "wapp" && key === "static") ? function next(req, res, next) { return next(); } : wapp.server.middlewares[key];
+    })
+]);
+
 wapp.server.listen();
+
 ```
 
 ## License
