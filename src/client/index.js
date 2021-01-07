@@ -39,7 +39,7 @@ export function run(p = defaultConfig) {
 
     if (typeof DEV !== "undefined" && DEV && module.hot){
         app.hot = module.hot;
-        module.hot.accept("./index");
+        module.hot.accept();
     }
 
     return wapp;
