@@ -8,12 +8,11 @@ export default function initGraphql(p = {}) {
     const {wapp} = p;
     const {server} = wapp;
 
-    const globalGraphqlConfig = (server.settings && server.settings.graphqlConfig) ? server.settings.graphqlConfig : {};
-    const config = (p.config) ? {...globalGraphqlConfig, ...p.config} : {...globalGraphqlConfig};
+    const globalGraphqlConfig = (server.settings && server.settings.graphql) ? server.settings.graphql : {};
 
     const {
-        graphqlRoute = "/graphql",
-    } = config;
+        route = "/graphql",
+    } = globalGraphqlConfig;
 
     if (!server.graphql) {
 
@@ -134,7 +133,7 @@ export default function initGraphql(p = {}) {
 
             const path = req.path || req.url;
 
-            if (path.slice(0,graphqlRoute.length) === graphqlRoute){
+            if (path.slice(0,route.length) === route){
 
                 const globals = wapp.globals;
                 const {DEV} = globals;

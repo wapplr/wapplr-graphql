@@ -10,7 +10,7 @@ export default function createServer(p = {}) {
 export function createMiddleware(p = {}) {
     return function graphqlMiddleware(req, res, next) {
         const wapp = req.wapp || p.wapp || createServer(p);
-        const graphql = wapp.server.graphql || initGraphql({wapp, ...p});
+        const graphql = initGraphql({wapp, ...p});
         return graphql.middleware(req, res, next)
     }
 }

@@ -10,8 +10,8 @@ import wapplrServer from "wapplr";
 const wapp = wapplrServer({config: {
         server: {
             disableUseDefaultMiddlewares: true,
-            graphqlConfig: {
-                graphqlRoute: "/graphql",
+            graphql: {
+                route: "/graphql",
             }
         },
         globals: {
@@ -23,19 +23,20 @@ const wapp = wapplrServer({config: {
 
 wapplrGraphql({wapp});
 
-const app = wapp.server.app;
+const app = wapp.server.app; 
 
 app.use([
     wapp.server.middlewares.wapp,
     wapp.server.middlewares.static,
     createWapplrGraphqlMiddleware({wapp}),
     ...Object.keys(wapp.server.middlewares).map(function (key){
-        return (key === "wapp" && key === "static") ? function next(req, res, next) { return next(); } : wapp.server.middlewares[key];
+        return (key === "wapp" && key === "static") ? 
+            function next(req, res, next) { return next(); } : 
+            wapp.server.middlewares[key];
     })
 ]);
 
 wapp.server.listen();
-
 ```
 
 ## License
