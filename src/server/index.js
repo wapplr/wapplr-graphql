@@ -1,17 +1,16 @@
-import wapplrServer from 'wapplr';
+import wapplrServer from "wapplr";
 import initGraphql from "./initGraphql";
 
 export default function createServer(p = {}) {
     const wapp = p.wapp || wapplrServer({...p});
-    initGraphql({wapp, ...p});
-    return wapp;
+    return initGraphql({wapp, ...p});
 }
 
 export function createMiddleware(p = {}) {
     return function graphqlMiddleware(req, res, next) {
         const wapp = req.wapp || p.wapp || createServer(p);
         const graphql = initGraphql({wapp, ...p});
-        return graphql.middleware(req, res, next)
+        return graphql.middleware(req, res, next);
     }
 }
 

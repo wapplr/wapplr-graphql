@@ -30,13 +30,35 @@ app.use([
     wapp.server.middlewares.static,
     createWapplrGraphqlMiddleware({wapp}),
     ...Object.keys(wapp.server.middlewares).map(function (key){
-        return (key === "wapp" && key === "static") ? 
+        return (key === "wapp" || key === "static") ? 
             function next(req, res, next) { return next(); } : 
             wapp.server.middlewares[key];
     })
 ]);
 
 wapp.server.listen();
+```
+
+```js
+//client.js
+import wapplrGraphql from "wapplr-graphql";
+import wapplrClient from "wapplr";
+
+const wapp = wapplrClient({config: {
+        client: {
+            graphql: {
+                route: "/graphql"
+            }
+        },
+        globals: {
+            WAPP: "yourBuildHash",
+        }
+    }
+});
+
+wapplrGraphql({wapp});
+
+wapp.client.listen();
 ```
 
 ## License
