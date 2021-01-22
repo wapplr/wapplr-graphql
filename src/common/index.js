@@ -4,7 +4,7 @@ export function createRequests(p = {}) {
 
     const state = wapp.response.state;
     const target = wapp.getTargetObject();
-    const globalGraphqlConfig = (target.settings && target.settings.graphql) ? target.settings.graphql : {};
+    const globalGraphqlConfig = (target.config && target.config.graphql) ? target.config.graphql : {};
     const requestManager = wapp.requests.requestManager;
 
     const {

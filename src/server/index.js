@@ -8,7 +8,7 @@ export default function createServer(p = {}) {
 
 export function createMiddleware(p = {}) {
     return function graphqlMiddleware(req, res, next) {
-        const wapp = req.wapp || p.wapp || createServer(p);
+        const wapp = req.wapp || p.wapp || createServer(p).wapp;
         const graphql = initGraphql({wapp, ...p});
         return graphql.middleware(req, res, next);
     }
@@ -28,7 +28,7 @@ const defaultConfig = {
 
 export function run(p = defaultConfig) {
 
-    const wapp = createServer(p);
+    const wapp = createServer(p).wapp;
     const globals = wapp.globals;
     const {DEV} = globals;
 

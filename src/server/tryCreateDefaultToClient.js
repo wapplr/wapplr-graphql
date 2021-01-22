@@ -138,16 +138,16 @@ function tryBuildAQueryFromClientData(p = {}) {
     try {
         if (gqlQueryBuilder && gqlQueryBuilder[kind]){
 
-            const settings = {
+            const config = {
                 operation: dataToClient.requestName || dataToClient.name,
                 fields: dataToClient.fieldsToBuilder,
             }
 
             if (dataToClient.argsToBuilder){
-                settings.variables = dataToClient.argsToBuilder;
+                config.variables = dataToClient.argsToBuilder;
             }
 
-            buildedQuery = gqlQueryBuilder[kind](settings)
+            buildedQuery = gqlQueryBuilder[kind](config)
 
             if (buildedQuery.query){
                 buildedQuery.query = buildedQuery.query.replace(/\n/g, " ").replace(/\s\s+/g, " ")

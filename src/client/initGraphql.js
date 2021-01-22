@@ -6,7 +6,7 @@ export default function initGraphql(p = {}) {
     const {wapp} = p;
     const {client} = wapp;
 
-    const globalGraphqlConfig = (client.settings && client.settings.graphql) ? client.settings.graphql : {};
+    const globalGraphqlConfig = (client.config && client.config.graphql) ? client.config.graphql : {};
 
     const {
         route = "/graphql",
@@ -47,8 +47,12 @@ export default function initGraphql(p = {}) {
             value: defaultGraphqlObject
         });
 
+        Object.defineProperty(client.graphql, "wapp", {...defaultDescriptor, writable: false, enumerable: false, value: wapp});
+
         client.graphql.init();
 
     }
+
+    return client.graphql;
 
 }
