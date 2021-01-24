@@ -139,7 +139,7 @@ export default function initGraphql(p = {}) {
 
         function defaultMiddleware(req, res, next) {
             server.graphql.init();
-            const path = req.wapp.request.path || req.wapp.request.url;
+            const path = req.wappRequest.path || req.wappRequest.url;
             if (path.slice(0,route.length) === route){
 
                 const globals = wapp.globals;
@@ -203,7 +203,7 @@ export default function initGraphql(p = {}) {
                 wapp.states.addHandle({
                     requestsFromGraphQl: function requestsFromGraphQl(req, res, next) {
 
-                        const state = wapp.response.state;
+                        const state = res.wappResponse.state;
 
                         if (!state.res.graphql) {
                             const graphqlState = {};
@@ -234,14 +234,14 @@ export default function initGraphql(p = {}) {
 
                             }
 
-                            wapp.states.store.dispatch(wapp.states.runAction("res", {
+                            res.wappResponse.store.dispatch(wapp.states.runAction("res", {
                                 name: "graphql",
                                 value: graphqlState
                             }))
-                            wapp.response.state = wapp.states.store.getState();
+                            res.wappResponse.state = res.wappResponse.store.getState();
                         }
 
-                        createRequests(p);
+                        createRequests({wapp, req, res});
 
                         next();
 

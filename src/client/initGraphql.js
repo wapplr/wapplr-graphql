@@ -6,12 +6,6 @@ export default function initGraphql(p = {}) {
     const {wapp} = p;
     const {client} = wapp;
 
-    const globalGraphqlConfig = (client.config && client.config.graphql) ? client.config.graphql : {};
-
-    const {
-        route = "/graphql",
-    } = globalGraphqlConfig;
-
     if (!client.graphql) {
 
         function defaultMiddleware(req, res, next) {
@@ -23,7 +17,7 @@ export default function initGraphql(p = {}) {
             if (wapp.states) {
                 wapp.states.addHandle({
                     requestsFromGraphQl: function requestsFromGraphQl(req, res, next) {
-                        createRequests(p)
+                        createRequests({wapp, req, res})
                         next();
                     }
                 })
