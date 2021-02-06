@@ -100,6 +100,13 @@ export default function initGraphql(p = {}) {
                     }
                 });
 
+                Object.defineProperty(server.graphql.TypeComposers[modelName], "Model", {
+                    enumerable: false,
+                    writable: false,
+                    configurable: false,
+                    value: Model
+                })
+
                 requiredFields.forEach(function (fieldFullName){
                     if (fieldFullName && fieldFullName.match(/\./g)){
                         const types = fieldFullName.split(".")
@@ -215,7 +222,7 @@ export default function initGraphql(p = {}) {
 
                                         const resolver = server.graphql.resolvers[TCName][resolverName];
 
-                                        tryCreateDefaultToClient({resolver, DEV})
+                                        tryCreateDefaultToClient({resolver, DEV, GraphQLSchema: server.graphql.schema, schemaComposer, Model: server.graphql.TypeComposers[TCName].Model})
 
                                         if (resolver.toClient) {
 
@@ -238,7 +245,9 @@ export default function initGraphql(p = {}) {
                                 name: "graphql",
                                 value: graphqlState
                             }))
+
                             res.wappResponse.state = res.wappResponse.store.getState();
+
                         }
 
                         createRequests({wapp, req, res});

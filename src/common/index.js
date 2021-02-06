@@ -13,17 +13,16 @@ export function createRequests(p = {}) {
 
     const {graphql = {}} = state.res;
 
-    function addRequest(resolver) {
+    function addRequest(resolver, requestName) {
 
-        const requestName = resolver.requestName;
         const url = resolver.url || route;
-        const buildQuery = resolver.buildQuery;
+        const query = resolver.query;
 
-        if (buildQuery && !requestManager.requests[requestName]) {
+        if (query && !requestManager.requests[requestName]) {
             const options = {
                 getBody: function getBody(p = {}) {
                     const r = {
-                        query: buildQuery.query,
+                        query: query,
                         variables: p.args || {}
                     }
 
@@ -37,13 +36,13 @@ export function createRequests(p = {}) {
 
     if (graphql.mutation){
         Object.keys(graphql.mutation).forEach(function (requestName) {
-            addRequest(graphql.mutation[requestName])
+            addRequest(graphql.mutation[requestName], requestName)
         })
     }
 
     if (graphql.query){
         Object.keys(graphql.query).forEach(function (requestName) {
-            addRequest(graphql.query[requestName])
+            addRequest(graphql.query[requestName], requestName)
         })
     }
 
