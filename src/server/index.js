@@ -28,6 +28,9 @@ const defaultConfig = {
 
 export function run(p = defaultConfig) {
 
+    const {env} = process;
+    env.NODE_ENV = process.env.NODE_ENV;
+
     const wapp = createServer(p).wapp;
     const globals = wapp.globals;
     const {DEV} = globals;
