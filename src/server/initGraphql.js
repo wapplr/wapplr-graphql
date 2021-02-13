@@ -346,6 +346,14 @@ export default function initGraphql(p = {}) {
                                 value: true
                             })
 
+                            if (resolverProperties.wapplr){
+                                Object.defineProperty(resolversForTC[resolverName], "wapplr", {
+                                    ...defaultDescriptor,
+                                    enumerable: false,
+                                    value: resolverProperties.wapplr
+                                })
+                            }
+
                         }
 
                     })

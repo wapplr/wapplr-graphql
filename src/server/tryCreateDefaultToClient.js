@@ -182,26 +182,31 @@ function recursiveArgsToBuilder(object, saveFields, deep = 0) {
     })
 }
 
-function recursiveArgsToFormData(jsonSchema = {}, object, saveFields, parentKey = "") {
+function recursiveArgsToFormData(resolverProperties = {}, jsonSchema = {}, object, saveFields, parentKey = "") {
 
     Object.keys(object).forEach(function (resPropKey){
 
         if (resPropKey === "fields"){
-            recursiveArgsToFormData(jsonSchema[resPropKey], object[resPropKey], saveFields, resPropKey);
+            recursiveArgsToFormData(resolverProperties, jsonSchema[resPropKey], object[resPropKey], saveFields, resPropKey);
         } else {
 
             const nextKey = (parentKey) ? parentKey + "." + resPropKey : resPropKey;
 
             const schemaObject = jsonSchema[resPropKey] || {};
+            const resolverPropertiesObject = resolverProperties[resPropKey] || {};
 
             if (object[resPropKey] && object[resPropKey].fields){
                 const nextSchema = (resPropKey === "record") ? jsonSchema : schemaObject.properties;
-                recursiveArgsToFormData(nextSchema, object[resPropKey].fields, saveFields, nextKey)
+                recursiveArgsToFormData(resolverPropertiesObject, nextSchema, object[resPropKey].fields, saveFields, nextKey)
             } else {
 
                 saveFields[nextKey] = {};
                 if (schemaObject?.wapplr?.formData){
                     saveFields[nextKey] = {...schemaObject.wapplr.formData};
+                }
+
+                if (resolverPropertiesObject.wapplr?.formData){
+                    saveFields[nextKey] = {...resolverPropertiesObject.wapplr.formData};
                 }
 
                 if (typeof object[resPropKey] == "object" && object[resPropKey].typeName) {
@@ -212,18 +217,18 @@ function recursiveArgsToFormData(jsonSchema = {}, object, saveFields, parentKey 
                     if (object[resPropKey].required){
                         saveFields[nextKey].required = true;
 
-                        if (typeof saveFields[nextKey].value == "undefined") {
+                        if (typeof saveFields[nextKey].default == "undefined") {
                             if (saveFields[nextKey].schemaType === "String") {
-                                saveFields[nextKey].value = "";
+                                saveFields[nextKey].default = "";
                             }
                             if (saveFields[nextKey].schemaType === "MongoID") {
-                                saveFields[nextKey].value = "";
+                                saveFields[nextKey].default = "";
                             }
                             if (saveFields[nextKey].schemaType === "Boolean") {
-                                saveFields[nextKey].value = false;
+                                saveFields[nextKey].default = false;
                             }
                             if (saveFields[nextKey].schemaType === "Number") {
-                                saveFields[nextKey].value = 0;
+                                saveFields[nextKey].default = 0;
                             }
                         }
 
@@ -288,6 +293,8 @@ export default function tryCreateDefaultToClient(p = {}) {
 
         try {
 
+            const resolverProperties = resolver.wapplr;
+
             const dataToClient = {
                 _kind: resolver.kind,
                 _requestName: resolver.requestName || resolver.name
@@ -336,7 +343,7 @@ export default function tryCreateDefaultToClient(p = {}) {
 
                 dataToClient.formData = {};
                 const jsonSchema = Model.getJsonSchema({doNotDeleteDisabledFields: true});
-                recursiveArgsToFormData(jsonSchema.properties, dataToClient._args, dataToClient.formData);
+                recursiveArgsToFormData(resolverProperties, jsonSchema.properties, dataToClient._args, dataToClient.formData);
 
                 const resolverNameWithoutModelPrefix = resolver.name || dataToClient._requestName.split(Model.modelName)[1] || "send";
                 const submitLabel = resolverNameWithoutModelPrefix.slice(0,1).toUpperCase() + resolverNameWithoutModelPrefix.slice(1);
