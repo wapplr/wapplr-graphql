@@ -48,80 +48,97 @@ export default function initGraphql(p = {}) {
 
             if (!server.graphql.TypeComposers[modelName]) {
 
-                const disabledFields = [];
-                const readOnlyFields = [];
-                const requiredFields = [];
+                try {
 
-                function recursiveCheck(tree, parentKey = "") {
-                    Object.keys(tree).forEach(function (key) {
+                    const disabledFields = [];
+                    const readOnlyFields = [];
+                    const requiredFields = [];
 
-                        const modelProperties = tree[key];
+                    function recursiveCheck(tree, parentKey = "") {
+                        Object.keys(tree).forEach(function (key) {
 
-                        if (typeof modelProperties === "object" && typeof modelProperties.length === "undefined"){
+                            const modelProperties = tree[key];
 
-                            const type = modelProperties.type;
-                            const nextKey = (parentKey) ? parentKey + "." + key : key;
+                            if (typeof modelProperties === "object" && typeof modelProperties.length === "undefined"){
 
-                            if (typeof type === "undefined" && Object.keys(modelProperties).length && !(key === "0")){
-                                recursiveCheck(modelProperties, nextKey);
-                            } else {
+                                const type = modelProperties.type;
+                                const instance = modelProperties.instance;
+                                const nextKey = (parentKey) ? parentKey + "." + key : key;
 
-                                const options = modelProperties.wapplr || {};
-                                const {disabled, readOnly, required} = options;
+                                if (typeof type === "undefined" && typeof instance === "undefined" && Object.keys(modelProperties).length && !(key === "0")){
+                                    recursiveCheck(modelProperties, nextKey);
+                                } else {
 
-                                if (disabled){
-                                    disabledFields.push(nextKey);
-                                }
-                                if (readOnly){
-                                    readOnlyFields.push(nextKey);
-                                }
-                                if (required){
-                                    if (parentKey && requiredFields.indexOf(parentKey) === -1){
-                                        requiredFields.push(parentKey);
+                                    const options = modelProperties.wapplr || {};
+                                    const {disabled, readOnly, required} = options;
+
+                                    if (disabled){
+                                        disabledFields.push(nextKey);
                                     }
-                                    requiredFields.push(nextKey);
+                                    if (readOnly){
+                                        readOnlyFields.push(nextKey);
+                                    }
+                                    if (required){
+                                        if (parentKey && requiredFields.indexOf(parentKey) === -1){
+                                            requiredFields.push(parentKey);
+                                        }
+                                        requiredFields.push(nextKey);
+                                    }
+
                                 }
 
                             }
 
+                        })
+                    }
+
+                    recursiveCheck(Model.schema.tree);
+
+                    const virtuals = Model.schema.virtuals && Object.fromEntries(
+                        Object.entries(Model.schema.virtuals).filter(([key, value]) => (
+                            Model.schema.virtuals[key].path &&
+                            Model.schema.virtuals[key].instance &&
+                            Model.schema.virtuals[key].wapplr
+                        )),
+                    );
+
+                    const paths = {...Model.schema.paths, ...virtuals || {}};
+
+                    server.graphql.TypeComposers[modelName] = composeWithMongoose({...Model, schema: {...Model.schema, paths}}, {
+                        schemaComposer,
+                        removeFields: disabledFields,
+                        inputType: {
+                            removeFields: readOnlyFields,
+                            requiredFields: requiredFields
                         }
+                    });
 
+                    Object.defineProperty(server.graphql.TypeComposers[modelName], "Model", {
+                        enumerable: false,
+                        writable: false,
+                        configurable: false,
+                        value: Model
                     })
+
+                    requiredFields.forEach(function (fieldFullName){
+                        if (fieldFullName && fieldFullName.match(/\./g)){
+                            const types = fieldFullName.split(".")
+                            try {
+                                const field = types[types.length-1];
+                                const parentType = types.slice(0,-1).join(".")
+                                const parentTypeName = parentType.replace(/\../g, function (found) {
+                                    return found.slice(-1).toUpperCase();
+                                })
+                                const ITCName = modelName.slice(0,1).toUpperCase() + modelName.slice(1) + parentTypeName.slice(0,1).toUpperCase() + parentTypeName.slice(1) + "Input"
+                                const ITC = schemaComposer.getITC(ITCName);
+                                ITC.makeRequired(field);
+                            } catch (e){}
+                        }
+                    })
+
+                }catch (e){
+                    console.log(e)
                 }
-
-                recursiveCheck(Model.schema.tree);
-
-                server.graphql.TypeComposers[modelName] = composeWithMongoose(Model, {
-                    schemaComposer,
-                    removeFields: disabledFields,
-                    inputType: {
-                        removeFields: readOnlyFields,
-                        requiredFields: requiredFields
-                    }
-                });
-
-                Object.defineProperty(server.graphql.TypeComposers[modelName], "Model", {
-                    enumerable: false,
-                    writable: false,
-                    configurable: false,
-                    value: Model
-                })
-
-                requiredFields.forEach(function (fieldFullName){
-                    if (fieldFullName && fieldFullName.match(/\./g)){
-                        const types = fieldFullName.split(".")
-                        try {
-                            const field = types[types.length-1];
-                            const parentType = types.slice(0,-1).join(".")
-                            const parentTypeName = parentType.replace(/\../g, function (found) {
-                                return found.slice(-1).toUpperCase();
-                            })
-                            const ITCName = modelName.slice(0,1).toUpperCase() + modelName.slice(1) + parentTypeName.slice(0,1).toUpperCase() + parentTypeName.slice(1) + "Input"
-                            const ITC = schemaComposer.getITC(ITCName);
-                            ITC.makeRequired(field);
-                        } catch (e){}
-                    }
-                })
 
             }
 
