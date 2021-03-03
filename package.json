@@ -27,7 +27,7 @@
         "wapplr-graphql build": "wapplr-cli build",
         "wapplr-graphql clean": "wapplr-cli clean"
     },
-    "version": "1.0.16",
+    "version": "1.0.17",
     "files": [
         "dist/*"
     ],

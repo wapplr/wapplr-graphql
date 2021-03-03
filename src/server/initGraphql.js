@@ -53,6 +53,7 @@ export default function initGraphql(p = {}) {
                     const disabledFields = [];
                     const readOnlyFields = [];
                     const requiredFields = [];
+                    const relations = [];
 
                     function recursiveCheck(tree, parentKey = "") {
                         Object.keys(tree).forEach(function (key) {
@@ -64,6 +65,10 @@ export default function initGraphql(p = {}) {
                                 const type = modelProperties.type;
                                 const instance = modelProperties.instance;
                                 const nextKey = (parentKey) ? parentKey + "." + key : key;
+
+                                if (modelProperties.ref){
+                                    relations.push({nextKey, modelProperties})
+                                }
 
                                 if (typeof type === "undefined" && typeof instance === "undefined" && Object.keys(modelProperties).length && !(key === "0")){
                                     recursiveCheck(modelProperties, nextKey);
@@ -112,6 +117,18 @@ export default function initGraphql(p = {}) {
                             requiredFields: requiredFields
                         }
                     });
+
+                    relations.forEach(function ({nextKey, modelProperties}) {
+                        if (server.graphql.TypeComposers[modelProperties.ref] && modelProperties.ref !== modelName) {
+                            server.graphql.TypeComposers[modelName].addRelation(nextKey, {
+                                resolver: () => server.graphql.TypeComposers[modelProperties.ref].getResolver("findById"),
+                                prepareArgs: {
+                                    _id: (source) => source[nextKey],
+                                },
+                                projection: { [nextKey]: true },
+                            });
+                        }
+                    })
 
                     Object.defineProperty(server.graphql.TypeComposers[modelName], "Model", {
                         enumerable: false,
