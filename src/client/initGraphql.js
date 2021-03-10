@@ -17,7 +17,7 @@ export default function initGraphql(p = {}) {
             if (wapp.states) {
                 wapp.states.addHandle({
                     requestsFromGraphQl: function requestsFromGraphQl(req, res, next) {
-                        createRequests({wapp, req, res})
+                        createRequests({wapp, req, res});
                         next();
                     }
                 })
@@ -33,7 +33,7 @@ export default function initGraphql(p = {}) {
                 ...defaultDescriptor,
                 value: defaultInit
             },
-        })
+        });
 
         Object.defineProperty(client, "graphql", {
             ...defaultDescriptor,

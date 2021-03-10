@@ -24,7 +24,7 @@ const defaultConfig = {
             ROOT: (typeof ROOT !== "undefined") ? ROOT : __dirname
         }
     }
-}
+};
 
 export function run(p = defaultConfig) {
 

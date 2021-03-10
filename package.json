@@ -7,7 +7,7 @@
         "graphql": "^15.4.0",
         "express-graphql": "^0.11.0",
         "graphql-compose": "^7.22.1",
-        "graphql-compose-mongoose": "^9.0.0",
+        "graphql-compose-mongoose": "^9.1.0",
         "gql-query-builder": "^3.5.5"
     },
     "devDependencies": {
@@ -27,7 +27,7 @@
         "wapplr-graphql build": "wapplr-cli build",
         "wapplr-graphql clean": "wapplr-cli clean"
     },
-    "version": "1.0.17",
+    "version": "1.0.18",
     "files": [
         "dist/*"
     ],

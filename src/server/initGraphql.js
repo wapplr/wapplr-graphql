@@ -5,6 +5,8 @@ import {createRequests} from "../common";
 import {graphqlHTTP} from "express-graphql";
 import {SchemaComposer} from "graphql-compose";
 import {composeWithMongoose} from "graphql-compose-mongoose";
+import {addFilterOperators} from "graphql-compose-mongoose/lib/resolvers/helpers/filterOperators";
+import {resolverFactory} from "graphql-compose-mongoose";
 
 export default function initGraphql(p = {}) {
 
@@ -54,6 +56,7 @@ export default function initGraphql(p = {}) {
                     const readOnlyFields = [];
                     const requiredFields = [];
                     const relations = [];
+                    const properties = {};
 
                     function recursiveCheck(tree, parentKey = "") {
                         Object.keys(tree).forEach(function (key) {
@@ -83,6 +86,9 @@ export default function initGraphql(p = {}) {
                                     if (readOnly){
                                         readOnlyFields.push(nextKey);
                                     }
+
+                                    properties[nextKey] = modelProperties;
+
                                     if (required){
                                         if (parentKey && requiredFields.indexOf(parentKey) === -1){
                                             requiredFields.push(parentKey);
@@ -107,27 +113,41 @@ export default function initGraphql(p = {}) {
                         )),
                     );
 
-                    const paths = {...Model.schema.paths, ...virtuals || {}};
+                    Object.keys(virtuals).forEach(function (key) {
+                        Model.schema.paths[key] = virtuals[key];
+                    })
 
-                    server.graphql.TypeComposers[modelName] = composeWithMongoose({...Model, schema: {...Model.schema, paths}}, {
+                    const virtualKeys = Object.keys(virtuals);
+
+                    const opts = {
                         schemaComposer,
                         removeFields: disabledFields,
                         inputType: {
-                            removeFields: readOnlyFields,
                             requiredFields: requiredFields
+                        },
+                        resolvers: {
+                            ...Object.fromEntries(Object.keys(resolverFactory).map(function (resolverName) {
+                                return [resolverName, {
+                                    record: {
+                                        removeFields: readOnlyFields
+                                    },
+                                    filter: {
+                                        removeFields: (resolverName.match("One")) ? [...virtualKeys] : ["_id", ...virtualKeys]
+                                    },
+                                    findManyOpts: {
+                                        filter: {
+                                            removeFields: (resolverName.match("One")) ? [...virtualKeys] : ["_id", ...virtualKeys]
+                                        },
+                                    }
+                                }]
+                            })),
                         }
-                    });
+                    };
 
-                    relations.forEach(function ({nextKey, modelProperties}) {
-                        if (server.graphql.TypeComposers[modelProperties.ref] && modelProperties.ref !== modelName) {
-                            server.graphql.TypeComposers[modelName].addRelation(nextKey, {
-                                resolver: () => server.graphql.TypeComposers[modelProperties.ref].getResolver("findById"),
-                                prepareArgs: {
-                                    _id: (source) => source[nextKey],
-                                },
-                                projection: { [nextKey]: true },
-                            });
-                        }
+                    server.graphql.TypeComposers[modelName] = composeWithMongoose(Model, opts);
+
+                    Object.keys(virtuals).forEach(function (key) {
+                        delete Model.schema.paths[key];
                     })
 
                     Object.defineProperty(server.graphql.TypeComposers[modelName], "Model", {
@@ -135,6 +155,23 @@ export default function initGraphql(p = {}) {
                         writable: false,
                         configurable: false,
                         value: Model
+                    })
+
+                    relations.forEach(function ({nextKey, modelProperties}) {
+                        if (server.graphql.TypeComposers[modelProperties.ref] && modelProperties.ref !== modelName) {
+                            server.graphql.TypeComposers[modelName].addRelation(nextKey, {
+                                resolver: () => server.graphql.TypeComposers[modelProperties.ref].getResolver("findById").wrapResolve(next => rp => {
+                                    if (!rp.args._id) {
+                                        return null;
+                                    }
+                                    return next(rp);
+                                }),
+                                prepareArgs: {
+                                    _id: (source) => (source[nextKey] && source[nextKey]._id) ? source[nextKey]._id : source[nextKey],
+                                },
+                                projection: { [nextKey]: true },
+                            })
+                        }
                     })
 
                     requiredFields.forEach(function (fieldFullName){

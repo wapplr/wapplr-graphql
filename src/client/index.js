@@ -24,7 +24,7 @@ const defaultConfig = {
             ROOT: (typeof ROOT !== "undefined") ? ROOT : "/"
         }
     }
-}
+};
 
 export function run(p = defaultConfig) {
 
@@ -33,7 +33,7 @@ export function run(p = defaultConfig) {
     const {DEV} = globals;
 
     const app = wapp.client.app;
-    app.use(createMiddleware({wapp, ...p}))
+    app.use(createMiddleware({wapp, ...p}));
     wapp.client.listen();
 
     if (typeof DEV !== "undefined" && DEV && module.hot){

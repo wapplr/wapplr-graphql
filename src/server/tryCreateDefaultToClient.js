@@ -60,12 +60,12 @@ function recursiveDataToClient(GraphQLSchema, schemaComposer, object, saveFields
                             (fields[fieldName] &&
                                 fields[fieldName].type &&
                                 fields[fieldName].type.getFields)
-                        )
+                        );
 
                         let hasOftype = !!(
                             (fields[fieldName] &&
                                 fields[fieldName].ofType)
-                        )
+                        );
 
                         const nonNullComposer = !!(
                             fields[fieldName] &&
@@ -77,13 +77,13 @@ function recursiveDataToClient(GraphQLSchema, schemaComposer, object, saveFields
 
                         if (!isObject && !hasOftype && !nonNullComposer && typeString && fields[fieldName].type?.toJSON) {
 
-                            fields[fieldName] = schemaComposer.typeMapper.typeFromAST(parseType(fields[fieldName].type.toJSON()))
+                            fields[fieldName] = schemaComposer.typeMapper.typeFromAST(parseType(fields[fieldName].type.toJSON()));
 
                             isObject = !!(
                                 (fields[fieldName] &&
                                     fields[fieldName].type &&
                                     fields[fieldName].type.getFields)
-                            )
+                            );
 
                             hasOftype = !!(
                                 (fields[fieldName] &&
@@ -127,13 +127,13 @@ function recursiveFieldsToBuilder(object, saveFields) {
             if (object.union){
                 fieldsData.operation = resPropKey;
                 fieldsData.variables = {};
-                fieldsData.fields = []
+                fieldsData.fields = [];
                 fieldsData.union = true;
             } else {
                 fieldsData[resPropKey] = [];
             }
 
-            recursiveFieldsToBuilder(object[resPropKey], (object.union) ? fieldsData.fields : fieldsData[resPropKey])
+            recursiveFieldsToBuilder(object[resPropKey], (object.union) ? fieldsData.fields : fieldsData[resPropKey]);
             saveFields.push(fieldsData)
         } else {
             if (object[resPropKey] && object[resPropKey].fields){
@@ -148,7 +148,7 @@ function recursiveFieldsToBuilder(object, saveFields) {
                     fieldsData[resPropKey] = [];
                 }
 
-                recursiveFieldsToBuilder(object[resPropKey].fields, (object[resPropKey].union) ? fieldsData.fields : fieldsData[resPropKey])
+                recursiveFieldsToBuilder(object[resPropKey].fields, (object[resPropKey].union) ? fieldsData.fields : fieldsData[resPropKey]);
                 saveFields.push(fieldsData)
             } else {
                 saveFields.push(resPropKey)
@@ -167,6 +167,10 @@ function recursiveArgsToBuilder(object, saveFields, deep = 0) {
 
             if (object[resPropKey].typeName){
                 saveFields[resPropKey].type = object[resPropKey].typeName;
+            } else {
+                if (object[resPropKey].toString && object[resPropKey].toString() === "Int"){
+                    saveFields[resPropKey].type = object[resPropKey].toString();
+                }
             }
 
             if (object[resPropKey].required){
@@ -257,7 +261,7 @@ function tryBuildAQueryFromClientData(p = {}) {
             const config = {
                 operation: requestName,
                 fields: dataToClient._fieldsToBuilder,
-            }
+            };
 
             if (kind === "query"){
                 config.adapter = QueryAdapter;
@@ -271,7 +275,7 @@ function tryBuildAQueryFromClientData(p = {}) {
                 config.variables = dataToClient._argsToBuilder;
             }
 
-            buildedQuery = gqlQueryBuilder[kind](config, config.adapter)
+            buildedQuery = gqlQueryBuilder[kind](config, config.adapter);
 
             if (buildedQuery.query){
                 buildedQuery.query = buildedQuery.query.replace(/\n/g, " ").replace(/\s\s+/g, " ")
@@ -298,7 +302,7 @@ export default function tryCreateDefaultToClient(p = {}) {
             const dataToClient = {
                 _kind: resolver.kind,
                 _requestName: resolver.requestName || resolver.name
-            }
+            };
 
             recursiveDataToClient(GraphQLSchema, schemaComposer, resolver, dataToClient);
 
@@ -365,7 +369,7 @@ export default function tryCreateDefaultToClient(p = {}) {
                 delete dataToClient._fieldsToBuilder;
             }
 
-            JSON.stringify(dataToClient)
+            JSON.stringify(dataToClient);
 
             resolver.toClient = function () {
                 return dataToClient;

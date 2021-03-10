@@ -24,11 +24,11 @@ export function createRequests(p = {}) {
                     const r = {
                         query: query,
                         variables: p.args || {}
-                    }
+                    };
 
                     return JSON.stringify(r);
                 }
-            }
+            };
             requestManager.setNewRequest({requestName, url, options})
         }
 
