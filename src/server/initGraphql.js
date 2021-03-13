@@ -5,7 +5,6 @@ import {createRequests} from "../common";
 import {graphqlHTTP} from "express-graphql";
 import {SchemaComposer} from "graphql-compose";
 import {composeWithMongoose} from "graphql-compose-mongoose";
-import {addFilterOperators} from "graphql-compose-mongoose/lib/resolvers/helpers/filterOperators";
 import {resolverFactory} from "graphql-compose-mongoose";
 
 export default function initGraphql(p = {}) {
@@ -351,7 +350,7 @@ export default function initGraphql(p = {}) {
                     if (resolvers[resolverName]) {
                         server.graphql.resolvers[TCName][resolverName] = resolvers[resolverName];
                     }
-                })
+                });
                 return server.graphql.resolvers[TCName];
             }
             return null;
