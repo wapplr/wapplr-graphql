@@ -114,7 +114,7 @@ export default function initGraphql(p = {}) {
 
                     Object.keys(virtuals).forEach(function (key) {
                         Model.schema.paths[key] = virtuals[key];
-                    })
+                    });
 
                     const virtualKeys = Object.keys(virtuals);
 
@@ -147,14 +147,14 @@ export default function initGraphql(p = {}) {
 
                     Object.keys(virtuals).forEach(function (key) {
                         delete Model.schema.paths[key];
-                    })
+                    });
 
                     Object.defineProperty(server.graphql.TypeComposers[modelName], "Model", {
                         enumerable: false,
                         writable: false,
                         configurable: false,
                         value: Model
-                    })
+                    });
 
                     relations.forEach(function ({nextKey, modelProperties}) {
                         if (server.graphql.TypeComposers[modelProperties.ref] && modelProperties.ref !== modelName) {
@@ -171,18 +171,18 @@ export default function initGraphql(p = {}) {
                                 projection: { [nextKey]: true },
                             })
                         }
-                    })
+                    });
 
                     requiredFields.forEach(function (fieldFullName){
                         if (fieldFullName && fieldFullName.match(/\./g)){
-                            const types = fieldFullName.split(".")
+                            const types = fieldFullName.split(".");
                             try {
                                 const field = types[types.length-1];
-                                const parentType = types.slice(0,-1).join(".")
+                                const parentType = types.slice(0,-1).join(".");
                                 const parentTypeName = parentType.replace(/\../g, function (found) {
                                     return found.slice(-1).toUpperCase();
-                                })
-                                const ITCName = modelName.slice(0,1).toUpperCase() + modelName.slice(1) + parentTypeName.slice(0,1).toUpperCase() + parentTypeName.slice(1) + "Input"
+                                });
+                                const ITCName = modelName.slice(0,1).toUpperCase() + modelName.slice(1) + parentTypeName.slice(0,1).toUpperCase() + parentTypeName.slice(1) + "Input";
                                 const ITC = schemaComposer.getITC(ITCName);
                                 ITC.makeRequired(field);
                             } catch (e){}
@@ -233,7 +233,7 @@ export default function initGraphql(p = {}) {
                     context: {req, res, wapp},
                     graphiql: DEV,
                     pretty: !DEV,
-                })(req, res, next)
+                })(req, res, next);
 
                 return
 
@@ -292,7 +292,7 @@ export default function initGraphql(p = {}) {
 
                                         const resolver = server.graphql.resolvers[TCName][resolverName];
 
-                                        tryCreateDefaultToClient({resolver, DEV, GraphQLSchema: server.graphql.schema, schemaComposer, Model: server.graphql.TypeComposers[TCName].Model})
+                                        tryCreateDefaultToClient({resolver, DEV, GraphQLSchema: server.graphql.schema, schemaComposer, Model: server.graphql.TypeComposers[TCName].Model});
 
                                         if (resolver.toClient) {
 
@@ -314,7 +314,7 @@ export default function initGraphql(p = {}) {
                             res.wappResponse.store.dispatch(wapp.states.runAction("res", {
                                 name: "graphql",
                                 value: graphqlState
-                            }))
+                            }));
 
                             res.wappResponse.state = res.wappResponse.store.getState();
 
@@ -383,6 +383,12 @@ export default function initGraphql(p = {}) {
                                 resolverProperties["args"] = resolverProperties["args"](TC, schemaComposer)
                             }
 
+                            const capitalizedResolverName = resolverName.slice(0,1).toUpperCase()+resolverName.slice(1);
+                            const TCLowerName = TCName.slice(0,1).toLowerCase() + TCName.slice(1);
+                            const requestName = TCLowerName + capitalizedResolverName;
+
+                            resolverProperties.requestName = requestName;
+
                             const resolverWithDefaults = {
                                 name: i.toString(),
                                 type: TC,
@@ -392,13 +398,7 @@ export default function initGraphql(p = {}) {
                                     return null;
                                 },
                                 ...resolverProperties,
-                            }
-
-                            const capitalizedResolverName = resolverName.slice(0,1).toUpperCase()+resolverName.slice(1);
-                            const TCLowerName = TCName.slice(0,1).toLowerCase() + TCName.slice(1);
-                            const requestName = TCLowerName + capitalizedResolverName;
-
-                            resolverProperties.requestName = requestName;
+                            };
 
                             TC.addResolver(resolverWithDefaults);
 
@@ -414,7 +414,7 @@ export default function initGraphql(p = {}) {
                                 enumerable: false,
                                 writable: false,
                                 value: true
-                            })
+                            });
 
                             if (resolverProperties.wapplr){
                                 Object.defineProperty(resolversForTC[resolverName], "wapplr", {
@@ -485,7 +485,7 @@ export default function initGraphql(p = {}) {
                 ...defaultDescriptor,
                 value: defaultInit
             },
-        })
+        });
 
         Object.defineProperty(server, "graphql", {
             ...defaultDescriptor,
