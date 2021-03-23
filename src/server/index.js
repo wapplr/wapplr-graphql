@@ -29,6 +29,10 @@ const defaultConfig = {
 
 export function run(p = defaultConfig) {
 
+    if (p?.config?.globals && !p.config.globals.RUN){
+        p.config.globals.RUN = p.config?.globals.NAME || "wapplr-graphql"
+    }
+
     const {env} = process;
     env.NODE_ENV = process.env.NODE_ENV;
 
