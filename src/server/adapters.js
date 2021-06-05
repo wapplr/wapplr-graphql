@@ -13,7 +13,7 @@ function isNestedField(object) {
 function queryDataNameAndArgumentMap(variables) {
     return variables && Object.keys(variables).length
         ? `(${Object.entries(variables).reduce((dataString, [key, value], i) => {
-            return `${dataString}${i !== 0 ? ", " : ""}${value && value.name ? value.name : key}: $${key}`;
+            return `${dataString}${i !== 0 ? ", " : ""}${value && value.name && typeof value.name == "string" ? value.name : key}: $${key}`;
         }, "")})`
         : "";
 }
@@ -111,7 +111,7 @@ export class QueryAdapter {
     }
     // query
     operationTemplate(variables) {
-        return `${this.operation} ${variables ? Utils.queryDataNameAndArgumentMap(variables) : ""} ${this.fields && this.fields.length > 0 ? "{ " + queryFieldsMap(this.fields) + " }" : ""}`;}
+        return `${this.operation} ${variables ? queryDataNameAndArgumentMap(variables) : ""} ${this.fields && this.fields.length > 0 ? "{ " + queryFieldsMap(this.fields) + " }" : ""}`;}
 }
 
 export class MutationAdapter {
