@@ -280,9 +280,9 @@ export default function initGraphql(p = {}) {
                 wapp.states.addHandle({
                     requestsFromGraphQl: function requestsFromGraphQl(req, res, next) {
 
-                        const state = res.wappResponse.state;
+                        const graphql = res.wappResponse.store.getState("res.graphql");
 
-                        if (!state.res.graphql) {
+                        if (!graphql) {
                             const graphqlState = {};
                             if (server.graphql.resolvers) {
 
@@ -315,8 +315,6 @@ export default function initGraphql(p = {}) {
                                 name: "graphql",
                                 value: graphqlState
                             }));
-
-                            res.wappResponse.state = res.wappResponse.store.getState();
 
                         }
 
