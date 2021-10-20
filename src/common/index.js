@@ -1,8 +1,7 @@
 export function createRequests(p = {}) {
 
-    const {wapp, req, res} = p;
+    const {wapp, res} = p;
 
-    const state = res.wappResponse.state;
     const target = wapp.getTargetObject();
     const globalGraphqlConfig = (target.config && target.config.graphql) ? target.config.graphql : {};
     const requestManager = wapp.requests.requestManager;
@@ -11,7 +10,7 @@ export function createRequests(p = {}) {
         route = "/graphql",
     } = globalGraphqlConfig;
 
-    const {graphql = {}} = state.res;
+    const graphql = res.wappResponse.store.getState("res.graphql") || {};
 
     function addRequest(resolver, requestName) {
 
