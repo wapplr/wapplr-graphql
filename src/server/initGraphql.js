@@ -44,10 +44,10 @@ export default function initGraphql(p = {}) {
 
         function defaultComposeFromModel(p = {}) {
 
-            const {Model, schemaComposer = server.graphql.schemaComposer} = p;
+            const {Model, schemaComposer = server.graphql.schemaComposer, initRelations} = p;
             const modelName = Model.modelName;
 
-            if (!server.graphql.TypeComposers[modelName]) {
+            if (!server.graphql.TypeComposers[modelName] || initRelations) {
 
                 try {
 
@@ -69,7 +69,7 @@ export default function initGraphql(p = {}) {
                                 const nextKey = (parentKey) ? parentKey + "." + key : key;
 
                                 if (modelProperties.ref){
-                                    relations.push({nextKey, modelProperties})
+                                    relations.push({nextKey, modelProperties: {...modelProperties, many: !!(typeof type === "object" && typeof type.length === "number" && type[0])}})
                                 }
 
                                 if (typeof type === "undefined" && typeof instance === "undefined" && Object.keys(modelProperties).length && !(key === "0")){
@@ -77,7 +77,7 @@ export default function initGraphql(p = {}) {
                                 } else {
 
                                     const options = modelProperties.wapplr || {};
-                                    const {disabled, readOnly, required} = options;
+                                    const {disabled, readOnly, required = (modelProperties.required === true)} = options;
 
                                     if (disabled){
                                         disabledFields.push(nextKey);
@@ -104,92 +104,166 @@ export default function initGraphql(p = {}) {
 
                     recursiveCheck(Model.schema.tree);
 
-                    const virtuals = Model.schema.virtuals && Object.fromEntries(
-                        Object.entries(Model.schema.virtuals).filter(([key, value]) => (
-                            Model.schema.virtuals[key].path &&
-                            Model.schema.virtuals[key].instance &&
-                            Model.schema.virtuals[key].wapplr
-                        )),
-                    );
+                    if (!initRelations) {
+                        const virtuals = Model.schema.virtuals && Object.fromEntries(
+                            Object.entries(Model.schema.virtuals).filter(([key]) => (
+                                Model.schema.virtuals[key].path &&
+                                Model.schema.virtuals[key].instance &&
+                                Model.schema.virtuals[key].wapplr
+                            )),
+                        );
 
-                    Object.keys(virtuals).forEach(function (key) {
-                        Model.schema.paths[key] = virtuals[key];
-                    });
+                        Object.keys(virtuals).forEach(function (key) {
+                            Model.schema.paths[key] = virtuals[key];
+                        });
 
-                    const virtualKeys = Object.keys(virtuals);
+                        const virtualKeys = Object.keys(virtuals);
 
-                    const opts = {
-                        schemaComposer,
-                        removeFields: disabledFields,
-                        inputType: {
-                            requiredFields: requiredFields
-                        },
-                        resolvers: {
-                            ...Object.fromEntries(Object.keys(resolverFactory).map(function (resolverName) {
-                                return [resolverName, {
-                                    record: {
-                                        removeFields: readOnlyFields
-                                    },
-                                    filter: {
-                                        removeFields: (resolverName.match("One")) ? [...virtualKeys] : ["_id", ...virtualKeys]
-                                    },
-                                    findManyOpts: {
+                        const opts = {
+                            schemaComposer,
+                            removeFields: disabledFields,
+                            inputType: {
+                                requiredFields: requiredFields
+                            },
+                            resolvers: {
+                                ...Object.fromEntries(Object.keys(resolverFactory).map(function (resolverName) {
+                                    return [resolverName, {
+                                        record: {
+                                            removeFields: readOnlyFields
+                                        },
                                         filter: {
                                             removeFields: (resolverName.match("One")) ? [...virtualKeys] : ["_id", ...virtualKeys]
                                         },
-                                    }
-                                }]
-                            })),
-                        }
-                    };
+                                        findManyOpts: {
+                                            filter: {
+                                                removeFields: (resolverName.match("One")) ? [...virtualKeys] : ["_id", ...virtualKeys]
+                                            },
+                                        }
+                                    }]
+                                })),
+                            }
+                        };
 
-                    server.graphql.TypeComposers[modelName] = composeWithMongoose(Model, opts);
+                        server.graphql.TypeComposers[modelName] = composeWithMongoose(Model, opts);
 
-                    Object.keys(virtuals).forEach(function (key) {
-                        delete Model.schema.paths[key];
-                    });
+                        Object.keys(virtuals).forEach(function (key) {
+                            delete Model.schema.paths[key];
+                        });
 
-                    Object.defineProperty(server.graphql.TypeComposers[modelName], "Model", {
-                        enumerable: false,
-                        writable: false,
-                        configurable: false,
-                        value: Model
-                    });
+                        Object.defineProperty(server.graphql.TypeComposers[modelName], "Model", {
+                            enumerable: false,
+                            writable: false,
+                            configurable: false,
+                            value: Model
+                        });
 
-                    relations.forEach(function ({nextKey, modelProperties}) {
-                        if (server.graphql.TypeComposers[modelProperties.ref] && modelProperties.ref !== modelName) {
-                            server.graphql.TypeComposers[modelName].addRelation(nextKey, {
-                                resolver: () => server.graphql.TypeComposers[modelProperties.ref].getResolver("findById").wrapResolve(next => rp => {
-                                    if (!rp.args._id) {
-                                        return null;
-                                    }
-                                    return next(rp);
-                                }),
-                                prepareArgs: {
-                                    _id: (source) => (source[nextKey] && source[nextKey]._id) ? source[nextKey]._id : source[nextKey],
-                                },
-                                projection: { [nextKey]: true },
-                            })
-                        }
-                    });
+                        requiredFields.forEach(function (fieldFullName){
+                            if (fieldFullName && fieldFullName.match(/\./g)){
+                                const types = fieldFullName.split(".");
+                                try {
+                                    const field = types[types.length-1];
+                                    const parentType = types.slice(0,-1).join(".");
+                                    const parentTypeName = parentType.replace(/\../g, function (found) {
+                                        return found.slice(-1).toUpperCase();
+                                    });
+                                    const ITCName = modelName.slice(0,1).toUpperCase() + modelName.slice(1) + parentTypeName.slice(0,1).toUpperCase() + parentTypeName.slice(1) + "Input";
+                                    const ITC = schemaComposer.getITC(ITCName);
+                                    ITC.makeRequired(field);
+                                } catch (e){}
+                            }
+                        })
 
-                    requiredFields.forEach(function (fieldFullName){
-                        if (fieldFullName && fieldFullName.match(/\./g)){
-                            const types = fieldFullName.split(".");
-                            try {
-                                const field = types[types.length-1];
-                                const parentType = types.slice(0,-1).join(".");
-                                const parentTypeName = parentType.replace(/\../g, function (found) {
-                                    return found.slice(-1).toUpperCase();
-                                });
-                                const ITCName = modelName.slice(0,1).toUpperCase() + modelName.slice(1) + parentTypeName.slice(0,1).toUpperCase() + parentTypeName.slice(1) + "Input";
-                                const ITC = schemaComposer.getITC(ITCName);
-                                ITC.makeRequired(field);
-                            } catch (e){}
-                        }
-                    })
+                    }
 
-                }catch (e){
+                    if (initRelations) {
+                        relations.forEach(function ({nextKey, modelProperties}) {
+                            if (server.graphql.TypeComposers[modelProperties.ref] && modelProperties.ref !== modelName) {
+
+                                const resolver =
+                                    (modelProperties.many) ?
+                                        server.graphql.TypeComposers[modelProperties.ref].getResolver("dataLoaderMany").wrapResolve(next => async (rp) => {
+                                            if (!rp.args._ids?.length) {
+                                                return [];
+                                            }
+                                            const response = await next(rp);
+                                            const postType = (wapp.server.postTypes) ? await wapp.server.postTypes.getPostType({name: modelProperties.ref.toLowerCase()}) : null;
+                                            if (!postType) {
+                                                return (response && response.length) ? response.filter((post) => {
+                                                    return (post && post._id)
+                                                }) : [];
+                                            }
+                                            const statusManager = postType.statusManager;
+                                            const userPostType =
+                                                (rp.context.req.user && rp.context.req.session.modelName) ?
+                                                    (rp.context.req.session.modelName === modelProperties.ref) ?
+                                                        postType :
+                                                        await wapp.server.postTypes.getPostType({name: rp.context.req.session.modelName.toLowerCase()}) :
+                                                    null;
+
+                                            const userStatusManager = (userPostType) ? userPostType.statusManager : null;
+                                            const isAdmin = (userStatusManager) ? rp.context.req.user._status_isFeatured : false;
+
+                                            if (isAdmin) {
+                                                return (response && response.length) ? response.filter((post) => {
+                                                    return (post && post._id)
+                                                }) : [];
+                                            }
+
+                                            return (response && response.length) ? response.filter((post) => {
+                                                return (post && post._id &&
+                                                    post._status_isNotDeleted &&
+                                                    post._author_status_isNotDeleted)
+                                            }) : [];
+                                        })
+                                        :
+                                        server.graphql.TypeComposers[modelProperties.ref].getResolver("findById").wrapResolve(next => async (rp) => {
+                                            if (!rp.args._id) {
+                                                return null;
+                                            }
+                                            const post = await next(rp);
+                                            const postType = (wapp.server.postTypes) ? await wapp.server.postTypes.getPostType({name: modelProperties.ref.toLowerCase()}) : null;
+                                            if (!postType) {
+                                                return (post && post._id) ? post : null;
+                                            }
+                                            const statusManager = postType.statusManager;
+                                            const userPostType =
+                                                (rp.context.req.user && rp.context.req.session.modelName) ?
+                                                    (rp.context.req.session.modelName === modelProperties.ref) ?
+                                                        postType :
+                                                        await wapp.server.postTypes.getPostType({name: rp.context.req.session.modelName.toLowerCase()}) :
+                                                    null;
+
+                                            const userStatusManager = (userPostType) ? userPostType.statusManager : null;
+                                            const isAdmin = (userStatusManager) ? rp.context.req.user._status_isFeatured : false;
+
+                                            if (isAdmin) {
+                                                return (post && post._id) ? post : null;
+                                            }
+
+                                            return (post && post._id) ? (post._status_isNotDeleted && post._author_status_isNotDeleted) ? post : null : post;
+                                        });
+
+                                const prepareArgs =
+                                    (modelProperties.many) ?
+                                        {
+                                            _ids: (source) => (source[nextKey] && source[nextKey].length) ? source[nextKey].filter((post) => post && post._id) : [],
+                                        } : {
+                                            _id: (source) => (source[nextKey] && source[nextKey]._id) ? source[nextKey]._id : source[nextKey],
+                                        };
+
+                                const relProps = {
+                                    resolver: () => resolver,
+                                    prepareArgs: prepareArgs,
+                                    projection: {[nextKey]: true},
+                                };
+
+                                server.graphql.TypeComposers[modelName].addRelation(nextKey, relProps)
+                            }
+                        });
+
+                    }
+
+                } catch (e){
                     console.log(e)
                 }
 
@@ -201,12 +275,16 @@ export default function initGraphql(p = {}) {
 
         function defaultGenerateFromDatabase() {
             if (server.database){
-                Object.keys(server.database).forEach(function (mongoConnectionString, i) {
+                Object.keys(server.database).forEach(function (mongoConnectionString) {
                     const models = server.database[mongoConnectionString].models;
                     if (models){
                         Object.keys(models).forEach(function (modelName) {
                             const Model = models[modelName];
                             server.graphql.composeFromModel({Model});
+                        });
+                        Object.keys(models).forEach(function (modelName) {
+                            const Model = models[modelName];
+                            server.graphql.composeFromModel({Model, initRelations: true});
                         })
                     }
                 });
@@ -228,14 +306,36 @@ export default function initGraphql(p = {}) {
                     return next();
                 }
 
-                graphqlHTTP({
-                    schema: schema,
-                    context: {req, res, wapp},
-                    graphiql: DEV,
-                    pretty: !DEV,
-                })(req, res, next);
+                let firstRequestName = "";
+                try {
+                    const query = req.body.query || "";
+                    if (typeof query == "string") {
+                        const isMutation = query.match("mutation");
+                        firstRequestName = query.split("{")[1].split(" ")[(isMutation) ? 0 : 1];
+                        if (firstRequestName.slice(0,1) === "("){
+                            firstRequestName = firstRequestName.slice(1);
+                        }
+                        if (firstRequestName.slice(-1) === ":"){
+                            firstRequestName = firstRequestName.slice(0,-1);
+                        }
+                    }
+                } catch (e){}
 
-                return
+                wapp.server.middlewares.log(
+                    firstRequestName ? {...req, wappRequest: {...req.wappRequest, url: req.wappRequest.url + "/" + firstRequestName}} : req,
+                    res,
+                    function (){
+
+                        graphqlHTTP({
+                            schema: schema,
+                            context: {req, res, wapp},
+                            graphiql: DEV,
+                            pretty: !DEV,
+                        })(req, res, next);
+
+                    });
+
+                return;
 
             }
             return next();
@@ -243,10 +343,10 @@ export default function initGraphql(p = {}) {
 
         function defaultInit() {
 
+            const schemaComposer = server.graphql.schemaComposer;
+
             server.graphql.generateFromDatabase();
             server.graphql.initResolvers();
-
-            const schemaComposer = server.graphql.schemaComposer;
 
             if (!Object.keys(schemaComposer.Query.getFields()).length){
                 schemaComposer.Query.addFields({
@@ -354,7 +454,7 @@ export default function initGraphql(p = {}) {
             return null;
         }
 
-        function defaultInitResolvers(p = {}) {
+        function defaultInitResolvers() {
 
             const resolvers = server.graphql.resolvers;
             const schemaComposer = server.graphql.schemaComposer;
