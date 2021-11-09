@@ -20,17 +20,27 @@ export function createRequests(p = {}) {
         if (query && !requestManager.requests[requestName]) {
             const options = {
                 getBody: function getBody(p = {}) {
+                    if (p.multipart){
+                        const formData = new FormData();
+                        const r = {
+                            query: query,
+                            variables: p.args || {},
+                        };
+                        formData.append("operations", JSON.stringify(r));
+                        if (p.callbackMultipartFormData){
+                            p.callbackMultipartFormData({formData});
+                        }
+                        return formData;
+                    }
                     const r = {
                         query: query,
-                        variables: p.args || {}
+                        variables: p.args || {},
                     };
-
                     return JSON.stringify(r);
                 }
             };
             requestManager.setNewRequest({requestName, url, options})
         }
-
     }
 
     if (graphql.mutation){
