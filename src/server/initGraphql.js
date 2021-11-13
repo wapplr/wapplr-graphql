@@ -53,6 +53,7 @@ export default function initGraphql(p = {}) {
 
                     const disabledFields = [];
                     const readOnlyFields = [];
+                    const readOnlyFieldFilters = {};
                     const requiredFields = [];
                     const relations = [];
                     const properties = {};
@@ -77,13 +78,21 @@ export default function initGraphql(p = {}) {
                                 } else {
 
                                     const options = modelProperties.wapplr || {};
-                                    const {disabled, readOnly, required = (modelProperties.required === true)} = options;
+                                    const {
+                                        disabled,
+                                        readOnly,
+                                        required = (modelProperties.required === true),
+                                        addGraphqlComposeReadOnlyFieldsFilter
+                                    } = options;
 
                                     if (disabled){
                                         disabledFields.push(nextKey);
                                     }
                                     if (readOnly){
                                         readOnlyFields.push(nextKey);
+                                    }
+                                    if (addGraphqlComposeReadOnlyFieldsFilter){
+                                        readOnlyFieldFilters[nextKey] = addGraphqlComposeReadOnlyFieldsFilter;
                                     }
 
                                     properties[nextKey] = modelProperties;
@@ -129,7 +138,7 @@ export default function initGraphql(p = {}) {
                                 ...Object.fromEntries(Object.keys(resolverFactory).map(function (resolverName) {
                                     return [resolverName, {
                                         record: {
-                                            removeFields: readOnlyFields
+                                            removeFields: [...readOnlyFields, ...Object.keys(readOnlyFieldFilters).filter((key)=>{return readOnlyFieldFilters[key]({resolverName})})]
                                         },
                                         filter: {
                                             removeFields: (resolverName.match("One")) ? [...virtualKeys] : ["_id", ...virtualKeys]
