@@ -151,6 +151,66 @@ function recursiveArgsToFormData(resolverProperties = {}, jsonSchema = {}, objec
 
 }
 
+function recursiveArgsToListData(resolverProperties = {}, jsonSchema = {}, object, listData, parentKey = "") {
+
+    Object.keys(object).forEach(function (resPropKey){
+
+        if (resPropKey === "fields"){
+            recursiveArgsToListData(resolverProperties, jsonSchema[resPropKey], object[resPropKey], listData, resPropKey);
+        } else {
+
+            const nextKey = (parentKey) ? parentKey + "." + resPropKey : resPropKey;
+            const schemaObject = jsonSchema[resPropKey] || {};
+            const resolverPropertiesObject = resolverProperties[resPropKey] || {};
+
+            if (object[resPropKey] && object[resPropKey].fields){
+
+                const nextSchema = (resPropKey === "record") ? jsonSchema : schemaObject.properties;
+                recursiveArgsToListData(resolverPropertiesObject, nextSchema, object[resPropKey].fields, listData, nextKey);
+
+            } else {
+
+                if (listData.sort) {
+
+                    const filteredSortFields = listData.sort.filter(({propertyNameArray}) => propertyNameArray.indexOf(nextKey) > -1);
+
+                    if (filteredSortFields.length) {
+                        filteredSortFields.forEach((sortFieldData) => {
+                            if (!sortFieldData.listData) {
+                                sortFieldData.listData = {};
+                            }
+                            sortFieldData.listData[nextKey] = {
+                                ...(schemaObject?.wapplr?.listData?.sort) ? schemaObject.wapplr.listData.sort : {},
+                                ...(resolverPropertiesObject.wapplr?.listData?.sort) ? resolverPropertiesObject.wapplr.listData.sort : {}
+                            };
+
+                            const {
+                                ascLabel = "Ascending by " + nextKey,
+                                descLabel = "Descending by " + nextKey,
+                            } = sortFieldData.listData[nextKey];
+
+                            const defaultT = sortFieldData.listData[nextKey].default || "ASC";
+
+                            sortFieldData.listData[nextKey].default =
+                                (sortFieldData.value?.value[nextKey] === -1 && defaultT === "DESC") ||
+                                (sortFieldData.value?.value[nextKey] === 1 && defaultT === "ASC");
+
+                            sortFieldData.listData[nextKey].label = (sortFieldData.value?.value[nextKey] === -1) ? descLabel : ascLabel;
+
+                            delete sortFieldData.listData[nextKey].descLabel;
+                            delete sortFieldData.listData[nextKey].ascLabel;
+                        });
+                    }
+
+                }
+
+            }
+        }
+    })
+
+}
+
+
 function tryBuildAQueryFromClientData(p = {}) {
 
     const {dataToClient = {}} = p;
@@ -421,7 +481,78 @@ export default function tryCreateDefaultToClient(p = {}) {
                 const submitLabel = resolverNameWithoutModelPrefix.slice(0,1).toUpperCase() + resolverNameWithoutModelPrefix.slice(1);
                 dataToClient.formData.submit = {
                     label: submitLabel
+                };
+
+                if (resolverNameWithoutModelPrefix.match("Many")) {
+
+                    dataToClient.listData = {};
+
+                    if (typeof dataToClient._args.sort?.fields === "object") {
+
+                        dataToClient.listData.sort = Object.keys(dataToClient._args.sort.fields).map((key) => {
+                            return {
+                                key: key,
+                                value: dataToClient._args.sort.fields[key],
+                                propertyNameArray: Object.keys(dataToClient._args.sort.fields[key].value)
+                            }
+                        });
+
+                    }
+
+                    if (typeof dataToClient._args.perPage === "object") {
+
+                        const resolverPropertiesObject = resolverProperties["perPage"] || {};
+                        const schemaObject =  jsonSchema.properties["perPage"] || {};
+
+                        dataToClient.listData.perPage = {
+                            limit: 100,
+                            default: 20,
+                            ...(schemaObject?.wapplr?.listData?.perPage) ? schemaObject.wapplr.listData.perPage : {},
+                            ...(resolverPropertiesObject.wapplr?.listData?.perPage) ? resolverPropertiesObject.wapplr.listData.perPage : {}
+                        };
+
+                    }
+
+                    recursiveArgsToListData(resolverProperties, jsonSchema.properties, dataToClient._fields.items.fields, dataToClient.listData);
+
+                    if (typeof dataToClient._args.sort?.fields === "object") {
+
+                        dataToClient.listData.sort = dataToClient.listData.sort.filter((sortFieldData) => {
+                            return !sortFieldData.listData || (sortFieldData.listData && !Object.keys(sortFieldData.listData).find((key) => sortFieldData.listData[key].disabled))
+                        });
+                        dataToClient.listData.sort = dataToClient.listData.sort.sort((a, b) => {
+
+                            const aOrder = Object.keys(a.listData).reduce((n, key) => {
+                                const order = (typeof a.listData[key].order === "number") ? a.listData[key].order : dataToClient.listData.length - 1;
+                                return n + order;
+                            }, 0);
+
+                            const bOrder = Object.keys(b.listData).reduce((n, key) => {
+                                const order = (typeof b.listData[key].order === "number") ? b.listData[key].order : dataToClient.listData.length - 1;
+                                return n + order;
+                            }, 0);
+
+                            if (aOrder === bOrder && a.propertyNameArray.join(",") === b.propertyNameArray.join(",")) {
+
+                                const aDefault = Object.keys(a.listData).reduce((n, key) => {
+                                    const order = (a.listData[key].default) ? 1 : 0;
+                                    return n + order;
+                                }, 0);
+
+                                const bDefault = Object.keys(b.listData).reduce((n, key) => {
+                                    const order = (b.listData[key].default) ? 1 : 0;
+                                    return n + order;
+                                }, 0);
+
+                                return (bDefault) ? 1 : (aDefault) ? -1 : 0
+                            }
+
+                            return (aOrder < bOrder) ? -1 : (aOrder > bOrder) ? 1 : 0;
+                        })
+
+                    }
                 }
+
             }
 
             if (dataToClient._fieldsToBuilder){
