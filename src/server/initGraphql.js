@@ -4,8 +4,7 @@ import {createRequests} from "../common";
 
 import {graphqlHTTP} from "express-graphql";
 import {SchemaComposer} from "graphql-compose";
-import {composeWithMongoose} from "graphql-compose-mongoose";
-import {resolverFactory} from "graphql-compose-mongoose";
+import {composeWithMongoose, resolverFactory} from "graphql-compose-mongoose";
 
 export default function initGraphql(p = {}) {
 
@@ -354,6 +353,32 @@ export default function initGraphql(p = {}) {
 
             server.graphql.generateFromDatabase();
             server.graphql.initResolvers();
+
+            if(!Object.keys(schemaComposer.Query.getFields()).length) {
+
+                const type = schemaComposer["createObjectTC"]({
+                    name: "ISay",
+                    fields: {
+                        something: {
+                            type: "String",
+                        }
+                    }
+                });
+
+                schemaComposer.Query.addFields({
+                    Say: {
+                        name: "SaySomething",
+                        args: {that: {type: "String"}},
+                        resolve: function (_, args) {
+                            const text = (args.that) ? args.that : "Hi!";
+                            return {something: "Isay: " + text}
+                        },
+                        kind: "query",
+                        type: type
+                    }
+                })
+
+            }
 
             server.graphql.buildSchema();
 
