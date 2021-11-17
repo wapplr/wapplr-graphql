@@ -201,7 +201,6 @@ export default function initGraphql(p = {}) {
                                                     return (post && post._id)
                                                 }) : [];
                                             }
-                                            const statusManager = postType.statusManager;
                                             const userPostType =
                                                 (rp.context.req.user && rp.context.req.session.modelName) ?
                                                     (rp.context.req.session.modelName === modelProperties.ref) ?
@@ -234,7 +233,6 @@ export default function initGraphql(p = {}) {
                                             if (!postType) {
                                                 return (post && post._id) ? post : null;
                                             }
-                                            const statusManager = postType.statusManager;
                                             const userPostType =
                                                 (rp.context.req.user && rp.context.req.session.modelName) ?
                                                     (rp.context.req.session.modelName === modelProperties.ref) ?
@@ -356,32 +354,6 @@ export default function initGraphql(p = {}) {
 
             server.graphql.generateFromDatabase();
             server.graphql.initResolvers();
-
-            if (!Object.keys(schemaComposer.Query.getFields()).length){
-                schemaComposer.Query.addFields({
-                    Say: {
-                        name: "SaySomething",
-                        args: {
-                            that: {
-                                type: "String"
-                            }
-                        },
-                        type: schemaComposer.createObjectTC({
-                            name: "ISay",
-                            fields: {
-                                something: {
-                                    type: "String"
-                                }
-                            }
-                        }),
-                        resolve: function (_, args) {
-                            const text = (args.that) ? args.that : "Hi!";
-                            return {something: "I say: " + text}
-                        },
-                        kind: "query"
-                    }
-                })
-            }
 
             server.graphql.buildSchema();
 
