@@ -96,14 +96,10 @@ function recursiveArgsToFormData(resolverProperties = {}, jsonSchema = {}, objec
                 recursiveArgsToFormData(resolverPropertiesObject, nextSchema, object[resPropKey].fields, saveFields, nextKey)
             } else {
 
-                saveFields[nextKey] = {};
-                if (schemaObject?.wapplr?.formData){
-                    saveFields[nextKey] = {...schemaObject.wapplr.formData};
-                }
-
-                if (resolverPropertiesObject.wapplr?.formData){
-                    saveFields[nextKey] = {...resolverPropertiesObject.wapplr.formData};
-                }
+                saveFields[nextKey] = {
+                    ...(schemaObject.wapplr?.formData) ? {...schemaObject.wapplr.formData} : {},
+                    ...(resolverPropertiesObject.wapplr?.formData) ? {...resolverPropertiesObject.wapplr.formData} : {},
+                };
 
                 if (schemaObject && schemaObject["x-ref"] && !saveFields[nextKey].refPostType){
                     saveFields[nextKey].refPostType = schemaObject["x-ref"].toLowerCase();
@@ -151,12 +147,12 @@ function recursiveArgsToFormData(resolverProperties = {}, jsonSchema = {}, objec
 
 }
 
-function recursiveArgsToListData(resolverProperties = {}, jsonSchema = {}, object, listData, parentKey = "") {
+function recursiveFieldsToListData(resolverProperties = {}, jsonSchema = {}, object, listData, parentKey = "") {
 
     Object.keys(object).forEach(function (resPropKey){
 
         if (resPropKey === "fields"){
-            recursiveArgsToListData(resolverProperties, jsonSchema[resPropKey], object[resPropKey], listData, resPropKey);
+            recursiveFieldsToListData(resolverProperties, jsonSchema[resPropKey], object[resPropKey], listData, resPropKey);
         } else {
 
             const nextKey = (parentKey) ? parentKey + "." + resPropKey : resPropKey;
@@ -165,10 +161,28 @@ function recursiveArgsToListData(resolverProperties = {}, jsonSchema = {}, objec
 
             if (object[resPropKey] && object[resPropKey].fields){
 
+                const list = {
+                    ...(schemaObject?.wapplr?.listData?.list) ? schemaObject.wapplr.listData.list : {},
+                    ...(resolverPropertiesObject.wapplr?.listData?.list) ? resolverPropertiesObject.wapplr.listData.list : {}
+                };
+
+                if (Object.keys(list).length){
+                    listData.list[nextKey] = list;
+                }
+
                 const nextSchema = (resPropKey === "record") ? jsonSchema : schemaObject.properties;
-                recursiveArgsToListData(resolverPropertiesObject, nextSchema, object[resPropKey].fields, listData, nextKey);
+                recursiveFieldsToListData(resolverPropertiesObject, nextSchema, object[resPropKey].fields, listData, nextKey);
 
             } else {
+
+                const list = {
+                    ...(schemaObject?.wapplr?.listData?.list) ? schemaObject.wapplr.listData.list : {},
+                    ...(resolverPropertiesObject.wapplr?.listData?.list) ? resolverPropertiesObject.wapplr.listData.list : {}
+                };
+
+                if (Object.keys(list).length){
+                    listData.list[nextKey] = list;
+                }
 
                 if (listData.sort) {
 
@@ -262,7 +276,7 @@ export default function tryCreateDefaultToClient(p = {}) {
         try {
 
             const resolverProperties = resolver.wapplr;
-            const {maxDepth = 5} = resolverProperties || {};
+            const {maxDepth = 2} = resolverProperties || {};
 
             function recursiveDataToClient(GraphQLSchema, schemaComposer, object, saveFields, required, isList, depth = 0) {
 
@@ -403,12 +417,14 @@ export default function tryCreateDefaultToClient(p = {}) {
                                             saveFields.fields[fieldName].union = true;
                                         }
 
+                                        const isRel = typeof fields[fieldName].resolve === "function";
+
                                         if (isObject) {
-                                            recursiveDataToClient(GraphQLSchema, schemaComposer, fields[fieldName], saveFields.fields[fieldName], false, 0, depth+1)
+                                            recursiveDataToClient(GraphQLSchema, schemaComposer, fields[fieldName], saveFields.fields[fieldName], false, 0, (isRel) ? depth+1 : depth)
                                         } else if (listType) {
-                                            recursiveDataToClient(GraphQLSchema, schemaComposer, fields[fieldName], saveFields.fields[fieldName], false, 1, depth)
+                                            recursiveDataToClient(GraphQLSchema, schemaComposer, fields[fieldName], saveFields.fields[fieldName], false, 1, (isRel) ? depth+1 : depth)
                                         } else if (nonNullComposer) {
-                                            recursiveDataToClient(GraphQLSchema, schemaComposer, fields[fieldName], saveFields.fields[fieldName], true, 0, depth)
+                                            recursiveDataToClient(GraphQLSchema, schemaComposer, fields[fieldName], saveFields.fields[fieldName], true, 0, (isRel) ? depth+1 : depth)
                                         }
 
                                     }
@@ -485,7 +501,9 @@ export default function tryCreateDefaultToClient(p = {}) {
 
                 if (resolverNameWithoutModelPrefix.match("Many")) {
 
-                    dataToClient.listData = {};
+                    dataToClient.listData = {
+                        list: {},
+                    };
 
                     if (typeof dataToClient._args.sort?.fields === "object") {
 
@@ -513,7 +531,7 @@ export default function tryCreateDefaultToClient(p = {}) {
 
                     }
 
-                    recursiveArgsToListData(resolverProperties, jsonSchema.properties, dataToClient._fields.items.fields, dataToClient.listData);
+                    recursiveFieldsToListData(resolverProperties, jsonSchema.properties, dataToClient._fields.items.fields, dataToClient.listData);
 
                     if (typeof dataToClient._args.sort?.fields === "object") {
 
