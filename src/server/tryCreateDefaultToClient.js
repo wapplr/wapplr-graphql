@@ -117,16 +117,24 @@ function recursiveArgsToFormData(resolverProperties = {}, jsonSchema = {}, objec
                         saveFields[nextKey].required = true;
 
                         if (typeof saveFields[nextKey].default == "undefined") {
-                            if (saveFields[nextKey].schemaType === "String") {
+                            if (saveFields[nextKey].schemaType === "String" ||
+                                saveFields[nextKey].schemaType?.name === "String") {
                                 saveFields[nextKey].default = "";
                             }
-                            if (saveFields[nextKey].schemaType === "MongoID") {
+                            if (saveFields[nextKey].schemaType === "MongoID" ||
+                                saveFields[nextKey].schemaType?.name === "MongoID") {
                                 saveFields[nextKey].default = "";
                             }
-                            if (saveFields[nextKey].schemaType === "Boolean") {
+                            if (saveFields[nextKey].schemaType === "Boolean" ||
+                                saveFields[nextKey].schemaType?.name === "Boolean") {
                                 saveFields[nextKey].default = false;
                             }
-                            if (saveFields[nextKey].schemaType === "Number") {
+                            if (saveFields[nextKey].schemaType === "Number" ||
+                                saveFields[nextKey].schemaType?.name === "Number") {
+                                saveFields[nextKey].default = 0;
+                            }
+                            if (saveFields[nextKey].schemaType === "Float" ||
+                                saveFields[nextKey].schemaType?.name === "Float") {
                                 saveFields[nextKey].default = 0;
                             }
                         }
@@ -147,6 +155,57 @@ function recursiveArgsToFormData(resolverProperties = {}, jsonSchema = {}, objec
 
 }
 
+function saveListAndTableProps({schemaObject, resolverPropertiesObject, listData, nextKey, object, resPropKey}) {
+    const list = {
+        ...(schemaObject?.wapplr?.listData?.list) ? schemaObject.wapplr.listData.list : {},
+        ...(resolverPropertiesObject.wapplr?.listData?.list) ? resolverPropertiesObject.wapplr.listData.list : {}
+    };
+    if (Object.keys(list).length){
+        listData.list[nextKey] = list;
+    }
+
+    const table = {
+        ...(schemaObject?.wapplr?.listData?.table) ? schemaObject.wapplr.listData.table : {},
+        ...(resolverPropertiesObject.wapplr?.listData?.table) ? resolverPropertiesObject.wapplr.listData.table : {}
+    };
+    if (Object.keys(table).length){
+        listData.table[nextKey] = table;
+        listData.table[nextKey].schemaType =
+            listData.table[nextKey].schemaType ||
+            (typeof object[resPropKey] == "object" && object[resPropKey].typeName) ?
+                (object[resPropKey].typeName?.toString) ? object[resPropKey].typeName.toString() : object[resPropKey].typeName :
+                object[resPropKey];
+
+        if (listData.table[nextKey].required && !object[resPropKey].list) {
+
+            if (typeof listData.table[nextKey].default == "undefined") {
+                if (listData.table[nextKey].schemaType === "String" ||
+                    listData.table[nextKey].schemaType?.name === "String") {
+                    listData.table[nextKey].default = "";
+                }
+                if (listData.table[nextKey].schemaType === "MongoID" ||
+                    listData.table[nextKey].schemaType?.name === "MongoID") {
+                    listData.table[nextKey].default = "";
+                }
+                if (listData.table[nextKey].schemaType === "Boolean" ||
+                    listData.table[nextKey].schemaType?.name === "Boolean") {
+                    listData.table[nextKey].default = false;
+                }
+                if (listData.table[nextKey].schemaType === "Number" ||
+                    listData.table[nextKey].schemaType?.name === "Number") {
+                    listData.table[nextKey].default = 0;
+                }
+                if (listData.table[nextKey].schemaType === "Float" ||
+                    listData.table[nextKey].schemaType?.name === "Float") {
+                    listData.table[nextKey].default = 0;
+                }
+            }
+
+        }
+
+    }
+}
+
 function recursiveFieldsToListData(resolverProperties = {}, jsonSchema = {}, object, listData, parentKey = "") {
 
     Object.keys(object).forEach(function (resPropKey){
@@ -161,28 +220,14 @@ function recursiveFieldsToListData(resolverProperties = {}, jsonSchema = {}, obj
 
             if (object[resPropKey] && object[resPropKey].fields){
 
-                const list = {
-                    ...(schemaObject?.wapplr?.listData?.list) ? schemaObject.wapplr.listData.list : {},
-                    ...(resolverPropertiesObject.wapplr?.listData?.list) ? resolverPropertiesObject.wapplr.listData.list : {}
-                };
-
-                if (Object.keys(list).length){
-                    listData.list[nextKey] = list;
-                }
+                saveListAndTableProps({schemaObject, resolverPropertiesObject, listData, nextKey, object, resPropKey});
 
                 const nextSchema = (resPropKey === "record") ? jsonSchema : schemaObject.properties;
                 recursiveFieldsToListData(resolverPropertiesObject, nextSchema, object[resPropKey].fields, listData, nextKey);
 
             } else {
 
-                const list = {
-                    ...(schemaObject?.wapplr?.listData?.list) ? schemaObject.wapplr.listData.list : {},
-                    ...(resolverPropertiesObject.wapplr?.listData?.list) ? resolverPropertiesObject.wapplr.listData.list : {}
-                };
-
-                if (Object.keys(list).length){
-                    listData.list[nextKey] = list;
-                }
+                saveListAndTableProps({schemaObject, resolverPropertiesObject, listData, nextKey, object, resPropKey});
 
                 if (listData.sort) {
 
@@ -503,6 +548,7 @@ export default function tryCreateDefaultToClient(p = {}) {
 
                     dataToClient.listData = {
                         list: {},
+                        table: {}
                     };
 
                     if (typeof dataToClient._args.sort?.fields === "object") {
