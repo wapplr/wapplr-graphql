@@ -137,7 +137,8 @@ export default function initGraphql(p = {}) {
                                 ...Object.fromEntries(Object.keys(resolverFactory).map(function (resolverName) {
                                     return [resolverName, {
                                         record: {
-                                            removeFields: [...readOnlyFields, ...Object.keys(readOnlyFieldFilters).filter((key)=>{return readOnlyFieldFilters[key]({resolverName})})]
+                                            removeFields: [...readOnlyFields, ...Object.keys(readOnlyFieldFilters).filter((key)=>{return readOnlyFieldFilters[key]({resolverName})})],
+                                            requiredFields: requiredFields
                                         },
                                         filter: {
                                             removeFields: (resolverName.match("One")) ? [...virtualKeys] : ["_id", ...virtualKeys]

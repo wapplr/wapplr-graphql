@@ -78,6 +78,17 @@ function recursiveArgsToBuilder(object, saveFields, deep = 0) {
     })
 }
 
+function typeToString(type) {
+    let r = type;
+    if (type?.toJSON){
+        r = type.toJSON();
+    }
+    if (type?.toString){
+        r = type.toString();
+    }
+    return r;
+}
+
 function recursiveArgsToFormData(resolverProperties = {}, jsonSchema = {}, object, saveFields, parentKey = "") {
 
     Object.keys(object).forEach(function (resPropKey){
@@ -107,9 +118,8 @@ function recursiveArgsToFormData(resolverProperties = {}, jsonSchema = {}, objec
 
                 if (typeof object[resPropKey] == "object" && object[resPropKey].typeName) {
 
-                    if (object[resPropKey].typeName){
-                        saveFields[nextKey].schemaType = (object[resPropKey].typeName.toString) ? object[resPropKey].typeName.toString() : object[resPropKey].typeName;
-                    }
+                    saveFields[nextKey].schemaType = typeToString(object[resPropKey].typeName.name ? object[resPropKey].typeName.name : object[resPropKey].typeName);
+
                     if (object[resPropKey].list){
                         saveFields[nextKey].multiple = true;
                     }
@@ -117,24 +127,19 @@ function recursiveArgsToFormData(resolverProperties = {}, jsonSchema = {}, objec
                         saveFields[nextKey].required = true;
 
                         if (typeof saveFields[nextKey].default == "undefined") {
-                            if (saveFields[nextKey].schemaType === "String" ||
-                                saveFields[nextKey].schemaType?.name === "String") {
+                            if (saveFields[nextKey].schemaType === "String") {
                                 saveFields[nextKey].default = "";
                             }
-                            if (saveFields[nextKey].schemaType === "MongoID" ||
-                                saveFields[nextKey].schemaType?.name === "MongoID") {
+                            if (saveFields[nextKey].schemaType === "MongoID") {
                                 saveFields[nextKey].default = "";
                             }
-                            if (saveFields[nextKey].schemaType === "Boolean" ||
-                                saveFields[nextKey].schemaType?.name === "Boolean") {
+                            if (saveFields[nextKey].schemaType === "Boolean") {
                                 saveFields[nextKey].default = false;
                             }
-                            if (saveFields[nextKey].schemaType === "Number" ||
-                                saveFields[nextKey].schemaType?.name === "Number") {
+                            if (saveFields[nextKey].schemaType === "Number") {
                                 saveFields[nextKey].default = 0;
                             }
-                            if (saveFields[nextKey].schemaType === "Float" ||
-                                saveFields[nextKey].schemaType?.name === "Float") {
+                            if (saveFields[nextKey].schemaType === "Float") {
                                 saveFields[nextKey].default = 0;
                             }
                         }
@@ -147,7 +152,7 @@ function recursiveArgsToFormData(resolverProperties = {}, jsonSchema = {}, objec
                     }
 
                 } else {
-                    saveFields[nextKey].schemaType = object[resPropKey]
+                    saveFields[nextKey].schemaType = typeToString(object[resPropKey]);
                 }
             }
         }
@@ -173,30 +178,25 @@ function saveListAndTableProps({schemaObject, resolverPropertiesObject, listData
         listData.table[nextKey].schemaType =
             listData.table[nextKey].schemaType ||
             (typeof object[resPropKey] == "object" && object[resPropKey].typeName) ?
-                (object[resPropKey].typeName?.toString) ? object[resPropKey].typeName.toString() : object[resPropKey].typeName :
-                object[resPropKey];
+                typeToString(object[resPropKey].typeName.name ? object[resPropKey].typeName.name : object[resPropKey].typeName) :
+                typeToString(object[resPropKey]);
 
         if (listData.table[nextKey].required && !object[resPropKey].list) {
 
             if (typeof listData.table[nextKey].default == "undefined") {
-                if (listData.table[nextKey].schemaType === "String" ||
-                    listData.table[nextKey].schemaType?.name === "String") {
+                if (listData.table[nextKey].schemaType === "String") {
                     listData.table[nextKey].default = "";
                 }
-                if (listData.table[nextKey].schemaType === "MongoID" ||
-                    listData.table[nextKey].schemaType?.name === "MongoID") {
+                if (listData.table[nextKey].schemaType === "MongoID") {
                     listData.table[nextKey].default = "";
                 }
-                if (listData.table[nextKey].schemaType === "Boolean" ||
-                    listData.table[nextKey].schemaType?.name === "Boolean") {
+                if (listData.table[nextKey].schemaType === "Boolean") {
                     listData.table[nextKey].default = false;
                 }
-                if (listData.table[nextKey].schemaType === "Number" ||
-                    listData.table[nextKey].schemaType?.name === "Number") {
+                if (listData.table[nextKey].schemaType === "Number") {
                     listData.table[nextKey].default = 0;
                 }
-                if (listData.table[nextKey].schemaType === "Float" ||
-                    listData.table[nextKey].schemaType?.name === "Float") {
+                if (listData.table[nextKey].schemaType === "Float") {
                     listData.table[nextKey].default = 0;
                 }
             }
