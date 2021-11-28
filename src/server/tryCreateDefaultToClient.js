@@ -112,43 +112,63 @@ function recursiveArgsToFormData(resolverProperties = {}, jsonSchema = {}, objec
                     ...(resolverPropertiesObject.wapplr?.formData) ? {...resolverPropertiesObject.wapplr.formData} : {},
                 };
 
-                if (schemaObject && schemaObject["x-ref"] && !saveFields[nextKey].refPostType){
-                    saveFields[nextKey].refPostType = schemaObject["x-ref"].toLowerCase();
+                const writeCondition =  schemaObject.wapplr?.writeCondition;
+
+                if (typeof saveFields[nextKey].writeCondition == "undefined" && writeCondition){
+                    saveFields[nextKey].writeCondition = writeCondition;
+                }
+
+                const ref = schemaObject.ref || schemaObject.wapplr?.ref || schemaObject["x-ref"];
+
+                if (ref && typeof saveFields[nextKey].refPostType == "undefined"){
+                    saveFields[nextKey].refPostType = ref.toLowerCase();
                 }
 
                 if (typeof object[resPropKey] == "object" && object[resPropKey].typeName) {
 
-                    saveFields[nextKey].schemaType = typeToString(object[resPropKey].typeName.name ? object[resPropKey].typeName.name : object[resPropKey].typeName);
+                    if (typeof saveFields[nextKey].schemaType == "undefined") {
+                        saveFields[nextKey].schemaType = typeToString(object[resPropKey].typeName.name ? object[resPropKey].typeName.name : object[resPropKey].typeName);
+                    }
 
-                    if (object[resPropKey].list){
+                    if (object[resPropKey].list && typeof saveFields[nextKey].multiple == "undefined"){
                         saveFields[nextKey].multiple = true;
                     }
-                    if (object[resPropKey].required && !object[resPropKey].list){
-                        saveFields[nextKey].required = true;
 
-                        if (typeof saveFields[nextKey].default == "undefined") {
-                            if (saveFields[nextKey].schemaType === "String") {
-                                saveFields[nextKey].default = "";
-                            }
-                            if (saveFields[nextKey].schemaType === "MongoID") {
-                                saveFields[nextKey].default = "";
-                            }
-                            if (saveFields[nextKey].schemaType === "Boolean") {
-                                saveFields[nextKey].default = false;
-                            }
-                            if (saveFields[nextKey].schemaType === "Number") {
-                                saveFields[nextKey].default = 0;
-                            }
-                            if (saveFields[nextKey].schemaType === "Float") {
-                                saveFields[nextKey].default = 0;
+                    if (object[resPropKey].required && !object[resPropKey].list){
+
+                        if (typeof saveFields[nextKey].required == "undefined") {
+                            saveFields[nextKey].required = true;
+                        }
+
+                        if (saveFields[nextKey].required) {
+                            if (typeof saveFields[nextKey].default == "undefined") {
+                                if (saveFields[nextKey].schemaType === "String") {
+                                    saveFields[nextKey].default = "";
+                                }
+                                if (saveFields[nextKey].schemaType === "MongoID") {
+                                    saveFields[nextKey].default = "";
+                                }
+                                if (saveFields[nextKey].schemaType === "Boolean") {
+                                    saveFields[nextKey].default = false;
+                                }
+                                if (saveFields[nextKey].schemaType === "Number") {
+                                    saveFields[nextKey].default = 0;
+                                }
+                                if (saveFields[nextKey].schemaType === "Float") {
+                                    saveFields[nextKey].default = 0;
+                                }
                             }
                         }
 
                     }
 
                     if (object[resPropKey].list && object[resPropKey].listIsRequired) {
-                        saveFields[nextKey].required = true;
-                        saveFields[nextKey].default = [];
+                        if (typeof saveFields[nextKey].required == "undefined") {
+                            saveFields[nextKey].required = true;
+                        }
+                        if (saveFields[nextKey].required && typeof saveFields[nextKey].default == "undefined") {
+                            saveFields[nextKey].default = [];
+                        }
                     }
 
                 } else {
@@ -181,9 +201,13 @@ function saveListAndTableProps({schemaObject, resolverPropertiesObject, listData
                 typeToString(object[resPropKey].typeName.name ? object[resPropKey].typeName.name : object[resPropKey].typeName) :
                 typeToString(object[resPropKey]);
 
-        if (listData.table[nextKey].required && !object[resPropKey].list) {
+        if (listData.table[nextKey].required) {
 
-            if (typeof listData.table[nextKey].default == "undefined") {
+            if (typeof schemaObject?.wapplr.default !== "undefined" && typeof listData.table[nextKey].default == "undefined"){
+
+                listData.table[nextKey].default = schemaObject.wapplr.default;
+
+            } else if (typeof listData.table[nextKey].default == "undefined") {
                 if (listData.table[nextKey].schemaType === "String") {
                     listData.table[nextKey].default = "";
                 }
