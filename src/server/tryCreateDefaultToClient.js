@@ -102,7 +102,7 @@ function recursiveArgsToFormData(resolverProperties = {}, jsonSchema = {}, objec
             const schemaObject = jsonSchema[resPropKey] || {};
             const resolverPropertiesObject = resolverProperties[resPropKey] || {};
 
-            if (object[resPropKey] && object[resPropKey].fields){
+            if (object[resPropKey] && object[resPropKey].fields && !schemaObject.enum){
                 const nextSchema = (resPropKey === "record") ? jsonSchema : schemaObject.properties;
                 recursiveArgsToFormData(resolverPropertiesObject, nextSchema, object[resPropKey].fields, saveFields, nextKey)
             } else {
@@ -124,14 +124,35 @@ function recursiveArgsToFormData(resolverProperties = {}, jsonSchema = {}, objec
                     saveFields[nextKey].refPostType = ref.toLowerCase();
                 }
 
+                const disableFindByAuthor =  schemaObject.wapplr?.disableFindByAuthor;
+
+                if (disableFindByAuthor && saveFields[nextKey].refPostType && typeof saveFields[nextKey].disableFindByAuthor == "undefined"){
+                    saveFields[nextKey].disableFindByAuthor = disableFindByAuthor;
+                }
+
                 if (typeof object[resPropKey] == "object" && object[resPropKey].typeName) {
 
                     if (typeof saveFields[nextKey].schemaType == "undefined") {
                         saveFields[nextKey].schemaType = typeToString(object[resPropKey].typeName.name ? object[resPropKey].typeName.name : object[resPropKey].typeName);
                     }
 
-                    if (object[resPropKey].list && typeof saveFields[nextKey].multiple == "undefined"){
-                        saveFields[nextKey].multiple = true;
+                    if (object[resPropKey].options && typeof object[resPropKey].options == "object"){
+                        if (!saveFields[nextKey].options){
+                            saveFields[nextKey].options = [];
+                        }
+                        Object.keys(object[resPropKey].options).forEach((key)=>{
+                            const found = saveFields[nextKey].options.find((a)=>a.value === object[resPropKey].options[key].value);
+                            if (found){
+                                if (typeof found.label == "undefined"){
+                                    found.label = key;
+                                }
+                            } else {
+                                saveFields[nextKey].options.push({
+                                    label: key,
+                                    value: object[resPropKey].options[key].value
+                                })
+                            }
+                        })
                     }
 
                     if (object[resPropKey].required && !object[resPropKey].list){
@@ -142,6 +163,7 @@ function recursiveArgsToFormData(resolverProperties = {}, jsonSchema = {}, objec
 
                         if (saveFields[nextKey].required) {
                             if (typeof saveFields[nextKey].default == "undefined") {
+
                                 if (saveFields[nextKey].schemaType === "String") {
                                     saveFields[nextKey].default = "";
                                 }
@@ -157,9 +179,18 @@ function recursiveArgsToFormData(resolverProperties = {}, jsonSchema = {}, objec
                                 if (saveFields[nextKey].schemaType === "Float") {
                                     saveFields[nextKey].default = 0;
                                 }
+
+                                if (saveFields[nextKey].options && typeof schemaObject.default !== "undefined"){
+                                    saveFields[nextKey].default = schemaObject.default;
+                                }
+
                             }
                         }
 
+                    }
+
+                    if (object[resPropKey].list && typeof saveFields[nextKey].multiple == "undefined"){
+                        saveFields[nextKey].multiple = true;
                     }
 
                     if (object[resPropKey].list && object[resPropKey].listIsRequired) {
@@ -168,7 +199,16 @@ function recursiveArgsToFormData(resolverProperties = {}, jsonSchema = {}, objec
                         }
                         if (saveFields[nextKey].required && typeof saveFields[nextKey].default == "undefined") {
                             saveFields[nextKey].default = [];
+
+                            if (saveFields[nextKey].options && typeof schemaObject.default !== "undefined"){
+                                saveFields[nextKey].default = schemaObject.default;
+                            }
+
                         }
+                    }
+
+                    if (saveFields[nextKey].multiple && saveFields[nextKey].required && typeof saveFields[nextKey].requiredAsteriskDisableShowOnLabel == "undefined"){
+                        saveFields[nextKey].requiredAsteriskDisableShowOnLabel = true;
                     }
 
                 } else {
@@ -393,6 +433,7 @@ export default function tryCreateDefaultToClient(p = {}) {
                             recursiveDataToClient(GraphQLSchema, schemaComposer, object[resPropKey], saveFields, nonNullComposer, listType, depth);
 
                         } else {
+
                             saveFields.fields = {};
                             saveFields.typeName =
                                 saveFields.typeName ||
@@ -403,10 +444,16 @@ export default function tryCreateDefaultToClient(p = {}) {
                                 object[resPropKey].typeName ||
                                 object[resPropKey].name;
 
+                            if ((object[resPropKey].constructor.name === "GraphQLEnumType") ||
+                                object[resPropKey].constructor.name === "EnumTypeComposer") {
+                                saveFields.enum = true;
+                            }
+
                             let fields = null;
 
                             if (object[resPropKey].toConfig) {
-                                fields = {...object[resPropKey].toConfig().fields}
+                                const config = object[resPropKey].toConfig();
+                                fields = {...(config.fields) ? config.fields : {}}
                             }
 
                             if (object[resPropKey].getFields) {
@@ -424,14 +471,28 @@ export default function tryCreateDefaultToClient(p = {}) {
                                 })
                             }
 
-                            if (fields && Object.keys(fields).length){
+                            if (saveFields.enum && fields && Object.keys(fields).length){
+                                try {
+                                    if (typeof fields[Object.keys(fields)[0]].value === "string"){
+                                        saveFields.typeName = "String";
+                                    }
+                                    if (typeof fields[Object.keys(fields)[0]].value === "number"){
+                                        saveFields.typeName = "Float";
+                                    }
+                                    saveFields.options = fields;
+                                } catch (e){
+                                    console.log(e);
+                                }
+                            }
+
+                            if (fields && Object.keys(fields).length && !saveFields.enum){
 
                                 const enableIndex = Object.keys(fields).indexOf("_id") > -1 ? Object.keys(fields).indexOf("_id") : 0;
                                 Object.keys(fields).forEach(function (fieldName, i) {
 
                                     if (depth < maxDepth || i === enableIndex ){
 
-                                        const typeString =
+                                        let typeString =
                                             (fields[fieldName] && fields[fieldName].type && fields[fieldName].type._gqType) ?
                                                 fields[fieldName].type._gqType :
                                                 (fields[fieldName] && fields[fieldName].type && fields[fieldName].type.getTypeName) ?
@@ -470,7 +531,10 @@ export default function tryCreateDefaultToClient(p = {}) {
                                             if (parsedString.constructor.name === "ObjectTypeComposer"){
                                                 isObject = true;
                                             }
+
                                         } catch (e){}
+
+
 
                                         if (nonNullComposer){
                                             listType = false;
@@ -575,13 +639,13 @@ export default function tryCreateDefaultToClient(p = {}) {
                         table: {}
                     };
 
-                    if (typeof dataToClient._args.sort?.fields === "object") {
+                    if (typeof dataToClient._args.sort?.options === "object") {
 
-                        dataToClient.listData.sort = Object.keys(dataToClient._args.sort.fields).map((key) => {
+                        dataToClient.listData.sort = Object.keys(dataToClient._args.sort.options).map((key) => {
                             return {
                                 key: key,
-                                value: dataToClient._args.sort.fields[key],
-                                propertyNameArray: Object.keys(dataToClient._args.sort.fields[key].value)
+                                value: dataToClient._args.sort.options[key],
+                                propertyNameArray: Object.keys(dataToClient._args.sort.options[key].value)
                             }
                         });
 
@@ -603,7 +667,7 @@ export default function tryCreateDefaultToClient(p = {}) {
 
                     recursiveFieldsToListData(resolverProperties, jsonSchema.properties, dataToClient._fields.items.fields, dataToClient.listData);
 
-                    if (typeof dataToClient._args.sort?.fields === "object") {
+                    if (typeof dataToClient._args.sort?.options === "object") {
 
                         dataToClient.listData.sort = dataToClient.listData.sort.filter((sortFieldData) => {
                             return !sortFieldData.listData || (sortFieldData.listData && !Object.keys(sortFieldData.listData).find((key) => sortFieldData.listData[key].disabled))
