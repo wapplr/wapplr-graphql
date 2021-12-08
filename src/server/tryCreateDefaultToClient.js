@@ -211,10 +211,6 @@ function recursiveArgsToFormData(resolverProperties = {}, jsonSchema = {}, objec
                         saveFields[nextKey].requiredAsteriskDisableShowOnLabel = true;
                     }
 
-                    if (saveFields[nextKey].multiple && schemaObject.wapplr?.sortable && typeof saveFields[nextKey].sortable == "undefined"){
-                        saveFields[nextKey].sortable = schemaObject.wapplr?.sortable;
-                    }
-
                 } else {
                     saveFields[nextKey].schemaType = typeToString(object[resPropKey]);
                 }
