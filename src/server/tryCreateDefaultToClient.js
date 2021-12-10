@@ -41,10 +41,10 @@ function recursiveFieldsToBuilder(object, saveFields) {
     })
 }
 
-function recursiveArgsToBuilder(object, saveFields, deep = 0) {
+function recursiveArgsToBuilder(object, saveFields) {
     Object.keys(object).forEach(function (resPropKey){
         if (resPropKey === "fields"){
-            recursiveArgsToBuilder(object[resPropKey], saveFields, deep+1)
+            recursiveArgsToBuilder(object[resPropKey], saveFields)
         } else {
 
             saveFields[resPropKey] = {};
@@ -70,7 +70,7 @@ function recursiveArgsToBuilder(object, saveFields, deep = 0) {
             }
 
             if (object[resPropKey] && object[resPropKey].fields){
-                recursiveArgsToBuilder(object[resPropKey].fields, saveFields[resPropKey], deep + 1)
+                recursiveArgsToBuilder(object[resPropKey].fields, saveFields[resPropKey])
             } else if (typeof object[resPropKey] == "string"){
                 saveFields[resPropKey] = object[resPropKey]
             }
@@ -112,7 +112,7 @@ function recursiveArgsToFormData(resolverProperties = {}, jsonSchema = {}, objec
                     ...(resolverPropertiesObject.wapplr?.formData) ? {...resolverPropertiesObject.wapplr.formData} : {},
                 };
 
-                const writeCondition =  schemaObject.wapplr?.writeCondition;
+                const writeCondition = schemaObject.wapplr?.writeCondition;
 
                 if (typeof saveFields[nextKey].writeCondition == "undefined" && writeCondition){
                     saveFields[nextKey].writeCondition = writeCondition;

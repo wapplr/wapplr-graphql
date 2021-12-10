@@ -54,6 +54,7 @@ export default function initGraphql(p = {}) {
                     const readOnlyFields = [];
                     const readOnlyFieldFilters = {};
                     const requiredFields = [];
+                    const removeRequiredFromInputArgs = [];
                     const relations = [];
                     const properties = {};
 
@@ -80,9 +81,18 @@ export default function initGraphql(p = {}) {
                                     const {
                                         disabled,
                                         readOnly,
-                                        required = (modelProperties.required === true),
                                         addGraphqlComposeReadOnlyFieldsFilter
                                     } = options;
+
+                                    let {required = (modelProperties.required === true)} = options;
+
+                                    if (options.writeCondition === "admin" && required){
+                                        if (parentKey && removeRequiredFromInputArgs.indexOf(parentKey) === -1){
+                                            removeRequiredFromInputArgs.push(parentKey);
+                                        }
+                                        removeRequiredFromInputArgs.push(nextKey);
+                                        Model.schema.paths[key].isRequired = false;
+                                    }
 
                                     if (disabled){
                                         disabledFields.push(nextKey);
@@ -131,14 +141,14 @@ export default function initGraphql(p = {}) {
                             schemaComposer,
                             removeFields: disabledFields,
                             inputType: {
-                                requiredFields: requiredFields
+                                requiredFields: requiredFields.filter(x => !removeRequiredFromInputArgs.includes(x))
                             },
                             resolvers: {
                                 ...Object.fromEntries(Object.keys(resolverFactory).map(function (resolverName) {
                                     return [resolverName, {
                                         record: {
                                             removeFields: [...readOnlyFields, ...Object.keys(readOnlyFieldFilters).filter((key)=>{return readOnlyFieldFilters[key]({resolverName})})],
-                                            requiredFields: requiredFields
+                                            requiredFields: requiredFields.filter(x => !removeRequiredFromInputArgs.includes(x))
                                         },
                                         filter: {
                                             removeFields: (resolverName.match("One")) ? [...virtualKeys] : ["_id", ...virtualKeys]
@@ -167,7 +177,7 @@ export default function initGraphql(p = {}) {
                         });
 
                         requiredFields.forEach(function (fieldFullName){
-                            if (fieldFullName && fieldFullName.match(/\./g)){
+                            if (fieldFullName && fieldFullName.match(/\./g) && removeRequiredFromInputArgs.indexOf(fieldFullName) === -1){
                                 const types = fieldFullName.split(".");
                                 try {
                                     const field = types[types.length-1];
@@ -178,8 +188,16 @@ export default function initGraphql(p = {}) {
                                     const ITCName = modelName.slice(0,1).toUpperCase() + modelName.slice(1) + parentTypeName.slice(0,1).toUpperCase() + parentTypeName.slice(1) + "Input";
                                     const ITC = schemaComposer.getITC(ITCName);
                                     ITC.makeRequired(field);
+
+                                    const UpdateITC = schemaComposer.getITC("UpdateById"+ITCName);
+                                    UpdateITC.makeRequired(field);
+
                                 } catch (e){}
                             }
+                        });
+
+                        removeRequiredFromInputArgs.forEach(function (key){
+                            Model.schema.paths[key].isRequired = true;
                         })
 
                     }
