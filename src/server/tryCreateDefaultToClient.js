@@ -321,6 +321,17 @@ function recursiveFieldsToListData(resolverProperties = {}, jsonSchema = {}, obj
 
                             sortFieldData.listData[nextKey].label = (sortFieldData.value?.value[nextKey] === -1) ? descLabel : ascLabel;
 
+                            if (typeof sortFieldData.listData[nextKey].disabled === "string"){
+                                if (
+                                    (sortFieldData.listData[nextKey].disabled === "ASC" && sortFieldData.value?.value[nextKey] === 1) ||
+                                    (sortFieldData.listData[nextKey].disabled === "DESC" && sortFieldData.value?.value[nextKey] === -1)
+                                ){
+                                    sortFieldData.listData[nextKey].disabled = true;
+                                } else {
+                                    delete sortFieldData.listData[nextKey].disabled;
+                                }
+                            }
+
                             delete sortFieldData.listData[nextKey].descLabel;
                             delete sortFieldData.listData[nextKey].ascLabel;
                         });
