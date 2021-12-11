@@ -64,9 +64,10 @@ function recursiveArgsToBuilder(object, saveFields) {
             }
             if (object[resPropKey].list){
                 saveFields[resPropKey].list = true;
-            }
-            if (object[resPropKey].listIsRequired){
-                saveFields[resPropKey].list = [true];
+                if (object[resPropKey].required){
+                    saveFields[resPropKey].list = [true];
+                }
+                saveFields[resPropKey].required = (object[resPropKey].listIsRequired)
             }
 
             if (object[resPropKey] && object[resPropKey].fields){
@@ -393,9 +394,9 @@ export default function tryCreateDefaultToClient(p = {}) {
 
                     if (resPropKey === "ofType" || resPropKey === "type"){
 
-                        if (isList){
+                        if (isList) {
                             saveFields.list = true;
-                            if (isList > 1){
+                            if (isList > 1) {
                                 saveFields.listIsRequired = true;
                             }
                         }
@@ -425,6 +426,8 @@ export default function tryCreateDefaultToClient(p = {}) {
                                     nonNullComposer = true;
                                 }
                             }
+
+                            console.log(resPropKey, required, isList, nonNullComposer, listType);
 
                             if (depth >= maxDepth ){
                                 return;
@@ -551,6 +554,10 @@ export default function tryCreateDefaultToClient(p = {}) {
                                         }
 
                                         const isRel = typeof fields[fieldName].resolve === "function";
+
+                                        if (fieldName === "sort"){
+                                            console.log("EZ")
+                                        }
 
                                         if (isObject) {
                                             recursiveDataToClient(GraphQLSchema, schemaComposer, fields[fieldName], saveFields.fields[fieldName], false, 0, (isRel) ? depth+1 : depth)

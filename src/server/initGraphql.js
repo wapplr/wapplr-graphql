@@ -157,6 +157,9 @@ export default function initGraphql(p = {}) {
                                             filter: {
                                                 removeFields: (resolverName.match("One")) ? [...virtualKeys] : ["_id", ...virtualKeys]
                                             },
+                                            sort: {
+                                                multi: true
+                                            }
                                         }
                                     }]
                                 })),
