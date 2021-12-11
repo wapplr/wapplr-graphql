@@ -427,8 +427,6 @@ export default function tryCreateDefaultToClient(p = {}) {
                                 }
                             }
 
-                            console.log(resPropKey, required, isList, nonNullComposer, listType);
-
                             if (depth >= maxDepth ){
                                 return;
                             }
@@ -554,10 +552,6 @@ export default function tryCreateDefaultToClient(p = {}) {
                                         }
 
                                         const isRel = typeof fields[fieldName].resolve === "function";
-
-                                        if (fieldName === "sort"){
-                                            console.log("EZ")
-                                        }
 
                                         if (isObject) {
                                             recursiveDataToClient(GraphQLSchema, schemaComposer, fields[fieldName], saveFields.fields[fieldName], false, 0, (isRel) ? depth+1 : depth)
