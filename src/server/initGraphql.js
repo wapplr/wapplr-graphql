@@ -73,8 +73,21 @@ export default function initGraphql(p = {}) {
                                     relations.push({nextKey, modelProperties: {...modelProperties, many: !!(typeof type === "object" && typeof type.length === "number" && type[0])}})
                                 }
 
-                                if (typeof type === "undefined" && typeof instance === "undefined" && Object.keys(modelProperties).length && !(key === "0")){
-                                    recursiveCheck(modelProperties, nextKey);
+                                if (
+                                    (type?.tree && typeof instance === "undefined" && Object.keys(type.tree).length && !(key === "0")) ||
+                                    (typeof type === "undefined" && typeof instance === "undefined" && Object.keys(modelProperties).length && !(key === "0"))
+                                ) {
+
+                                    const options = modelProperties.wapplr || {};
+                                    const {
+                                        addGraphqlComposeReadOnlyFieldsFilter
+                                    } = options;
+
+                                    if (addGraphqlComposeReadOnlyFieldsFilter){
+                                        readOnlyFieldFilters[nextKey] = addGraphqlComposeReadOnlyFieldsFilter;
+                                    }
+
+                                    recursiveCheck((type?.tree) ? type.tree : modelProperties, nextKey);
                                 } else {
 
                                     const options = modelProperties.wapplr || {};
