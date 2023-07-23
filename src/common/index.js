@@ -21,14 +21,19 @@ export function createRequests(p = {}) {
             const options = {
                 getBody: function getBody(p = {}) {
                     if (p.multipart){
-                        const formData = new FormData();
+                        let formData = typeof FormData !== 'undefined' ? new FormData() : null;
                         const r = {
                             query: query,
                             variables: p.args || {},
                         };
-                        formData.append("operations", JSON.stringify(r));
+                        if (formData) {
+                            formData.append("operations", JSON.stringify(r));
+                        }
                         if (p.callbackMultipartFormData){
-                            p.callbackMultipartFormData({formData});
+                            const newFormData = p.callbackMultipartFormData({formData, body: {operations: r}});
+                            if (newFormData) {
+                                formData = newFormData;
+                            }
                         }
                         return formData;
                     }
