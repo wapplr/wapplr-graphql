@@ -221,48 +221,48 @@ function recursiveArgsToFormData(resolverProperties = {}, jsonSchema = {}, objec
 
 }
 
-function saveListAndTableProps({schemaObject, resolverPropertiesObject, clientData, nextKey, object, resPropKey}) {
+function saveListAndTableProps({schemaObject, resolverPropertiesObject, listData, nextKey, object, resPropKey}) {
     const list = {
-        ...(schemaObject?.wapplr?.clientData?.list) ? schemaObject.wapplr.clientData.list : {},
-        ...(resolverPropertiesObject.wapplr?.clientData?.list) ? resolverPropertiesObject.wapplr.clientData.list : {}
+        ...(schemaObject?.wapplr?.listData?.list) ? schemaObject.wapplr.listData.list : {},
+        ...(resolverPropertiesObject.wapplr?.listData?.list) ? resolverPropertiesObject.wapplr.listData.list : {}
     };
     if (Object.keys(list).length){
-        clientData.list[nextKey] = list;
+        listData.list[nextKey] = list;
     }
 
     const table = {
-        ...(schemaObject?.wapplr?.clientData?.table) ? schemaObject.wapplr.clientData.table : {},
-        ...(resolverPropertiesObject.wapplr?.clientData?.table) ? resolverPropertiesObject.wapplr.clientData.table : {}
+        ...(schemaObject?.wapplr?.listData?.table) ? schemaObject.wapplr.listData.table : {},
+        ...(resolverPropertiesObject.wapplr?.listData?.table) ? resolverPropertiesObject.wapplr.listData.table : {}
     };
     if (Object.keys(table).length){
-        clientData.table[nextKey] = table;
-        clientData.table[nextKey].schemaType =
-            clientData.table[nextKey].schemaType ||
+        listData.table[nextKey] = table;
+        listData.table[nextKey].schemaType =
+            listData.table[nextKey].schemaType ||
             (typeof object[resPropKey] == "object" && object[resPropKey].typeName) ?
                 typeToString(object[resPropKey].typeName.name ? object[resPropKey].typeName.name : object[resPropKey].typeName) :
                 typeToString(object[resPropKey]);
 
-        if (clientData.table[nextKey].required) {
+        if (listData.table[nextKey].required) {
 
-            if (typeof schemaObject?.wapplr.default !== "undefined" && typeof clientData.table[nextKey].default == "undefined"){
+            if (typeof schemaObject?.wapplr.default !== "undefined" && typeof listData.table[nextKey].default == "undefined"){
 
-                clientData.table[nextKey].default = schemaObject.wapplr.default;
+                listData.table[nextKey].default = schemaObject.wapplr.default;
 
-            } else if (typeof clientData.table[nextKey].default == "undefined") {
-                if (clientData.table[nextKey].schemaType === "String") {
-                    clientData.table[nextKey].default = "";
+            } else if (typeof listData.table[nextKey].default == "undefined") {
+                if (listData.table[nextKey].schemaType === "String") {
+                    listData.table[nextKey].default = "";
                 }
-                if (clientData.table[nextKey].schemaType === "MongoID") {
-                    clientData.table[nextKey].default = "";
+                if (listData.table[nextKey].schemaType === "MongoID") {
+                    listData.table[nextKey].default = "";
                 }
-                if (clientData.table[nextKey].schemaType === "Boolean") {
-                    clientData.table[nextKey].default = false;
+                if (listData.table[nextKey].schemaType === "Boolean") {
+                    listData.table[nextKey].default = false;
                 }
-                if (clientData.table[nextKey].schemaType === "Number") {
-                    clientData.table[nextKey].default = 0;
+                if (listData.table[nextKey].schemaType === "Number") {
+                    listData.table[nextKey].default = 0;
                 }
-                if (clientData.table[nextKey].schemaType === "Float") {
-                    clientData.table[nextKey].default = 0;
+                if (listData.table[nextKey].schemaType === "Float") {
+                    listData.table[nextKey].default = 0;
                 }
             }
 
@@ -271,12 +271,12 @@ function saveListAndTableProps({schemaObject, resolverPropertiesObject, clientDa
     }
 }
 
-function recursiveFieldsToClientData(resolverProperties = {}, jsonSchema = {}, object, clientData, parentKey = "") {
+function recursiveFieldsToListData(resolverProperties = {}, jsonSchema = {}, object, listData, parentKey = "") {
 
     Object.keys(object).forEach(function (resPropKey){
 
         if (resPropKey === "fields"){
-            recursiveFieldsToClientData(resolverProperties, jsonSchema[resPropKey], object[resPropKey], clientData, resPropKey);
+            recursiveFieldsToListData(resolverProperties, jsonSchema[resPropKey], object[resPropKey], listData, resPropKey);
         } else {
 
             const nextKey = (parentKey) ? parentKey + "." + resPropKey : resPropKey;
@@ -285,55 +285,55 @@ function recursiveFieldsToClientData(resolverProperties = {}, jsonSchema = {}, o
 
             if (object[resPropKey] && object[resPropKey].fields){
 
-                saveListAndTableProps({schemaObject, resolverPropertiesObject, clientData, nextKey, object, resPropKey});
+                saveListAndTableProps({schemaObject, resolverPropertiesObject, listData, nextKey, object, resPropKey});
 
                 const nextSchema = (resPropKey === "record") ? jsonSchema : schemaObject.properties;
-                recursiveFieldsToClientData(resolverPropertiesObject, nextSchema, object[resPropKey].fields, clientData, nextKey);
+                recursiveFieldsToListData(resolverPropertiesObject, nextSchema, object[resPropKey].fields, listData, nextKey);
 
             } else {
 
-                saveListAndTableProps({schemaObject, resolverPropertiesObject, clientData, nextKey, object, resPropKey});
+                saveListAndTableProps({schemaObject, resolverPropertiesObject, listData, nextKey, object, resPropKey});
 
-                if (clientData.sort) {
+                if (listData.sort) {
 
-                    const filteredSortFields = clientData.sort.filter(({propertyNameArray}) => propertyNameArray.indexOf(nextKey) > -1);
+                    const filteredSortFields = listData.sort.filter(({propertyNameArray}) => propertyNameArray.indexOf(nextKey) > -1);
 
                     if (filteredSortFields.length) {
                         filteredSortFields.forEach((sortFieldData) => {
-                            if (!sortFieldData.clientData) {
-                                sortFieldData.clientData = {};
+                            if (!sortFieldData.listData) {
+                                sortFieldData.listData = {};
                             }
-                            sortFieldData.clientData[nextKey] = {
-                                ...(schemaObject?.wapplr?.clientData?.sort) ? schemaObject.wapplr.clientData.sort : {},
-                                ...(resolverPropertiesObject.wapplr?.clientData?.sort) ? resolverPropertiesObject.wapplr.clientData.sort : {}
+                            sortFieldData.listData[nextKey] = {
+                                ...(schemaObject?.wapplr?.listData?.sort) ? schemaObject.wapplr.listData.sort : {},
+                                ...(resolverPropertiesObject.wapplr?.listData?.sort) ? resolverPropertiesObject.wapplr.listData.sort : {}
                             };
 
                             const {
                                 ascLabel = "Ascending by " + nextKey,
                                 descLabel = "Descending by " + nextKey,
-                            } = sortFieldData.clientData[nextKey];
+                            } = sortFieldData.listData[nextKey];
 
-                            const defaultT = sortFieldData.clientData[nextKey].default || "ASC";
+                            const defaultT = sortFieldData.listData[nextKey].default || "ASC";
 
-                            sortFieldData.clientData[nextKey].default =
+                            sortFieldData.listData[nextKey].default =
                                 (sortFieldData.value?.value[nextKey] === -1 && defaultT === "DESC") ||
                                 (sortFieldData.value?.value[nextKey] === 1 && defaultT === "ASC");
 
-                            sortFieldData.clientData[nextKey].label = (sortFieldData.value?.value[nextKey] === -1) ? descLabel : ascLabel;
+                            sortFieldData.listData[nextKey].label = (sortFieldData.value?.value[nextKey] === -1) ? descLabel : ascLabel;
 
-                            if (typeof sortFieldData.clientData[nextKey].disabled === "string"){
+                            if (typeof sortFieldData.listData[nextKey].disabled === "string"){
                                 if (
-                                    (sortFieldData.clientData[nextKey].disabled === "ASC" && sortFieldData.value?.value[nextKey] === 1) ||
-                                    (sortFieldData.clientData[nextKey].disabled === "DESC" && sortFieldData.value?.value[nextKey] === -1)
+                                    (sortFieldData.listData[nextKey].disabled === "ASC" && sortFieldData.value?.value[nextKey] === 1) ||
+                                    (sortFieldData.listData[nextKey].disabled === "DESC" && sortFieldData.value?.value[nextKey] === -1)
                                 ){
-                                    sortFieldData.clientData[nextKey].disabled = true;
+                                    sortFieldData.listData[nextKey].disabled = true;
                                 } else {
-                                    delete sortFieldData.clientData[nextKey].disabled;
+                                    delete sortFieldData.listData[nextKey].disabled;
                                 }
                             }
 
-                            delete sortFieldData.clientData[nextKey].descLabel;
-                            delete sortFieldData.clientData[nextKey].ascLabel;
+                            delete sortFieldData.listData[nextKey].descLabel;
+                            delete sortFieldData.listData[nextKey].ascLabel;
                         });
                     }
 
@@ -646,14 +646,14 @@ export default function tryCreateDefaultToClient(p = {}) {
 
                 if (resolverNameWithoutModelPrefix.match("Many")) {
 
-                    dataToClient.clientData = {
+                    dataToClient.listData = {
                         list: {},
                         table: {}
                     };
 
                     if (typeof dataToClient._args.sort?.options === "object") {
 
-                        dataToClient.clientData.sort = Object.keys(dataToClient._args.sort.options).map((key) => {
+                        dataToClient.listData.sort = Object.keys(dataToClient._args.sort.options).map((key) => {
                             return {
                                 key: key,
                                 value: dataToClient._args.sort.options[key],
@@ -668,43 +668,43 @@ export default function tryCreateDefaultToClient(p = {}) {
                         const resolverPropertiesObject = resolverProperties["perPage"] || {};
                         const schemaObject =  jsonSchema.properties["perPage"] || {};
 
-                        dataToClient.clientData.perPage = {
+                        dataToClient.listData.perPage = {
                             limit: 100,
                             default: 20,
-                            ...(schemaObject?.wapplr?.clientData?.perPage) ? schemaObject.wapplr.clientData.perPage : {},
-                            ...(resolverPropertiesObject.wapplr?.clientData?.perPage) ? resolverPropertiesObject.wapplr.clientData.perPage : {}
+                            ...(schemaObject?.wapplr?.listData?.perPage) ? schemaObject.wapplr.listData.perPage : {},
+                            ...(resolverPropertiesObject.wapplr?.listData?.perPage) ? resolverPropertiesObject.wapplr.listData.perPage : {}
                         };
 
                     }
 
-                    recursiveFieldsToClientData(resolverProperties, jsonSchema.properties, dataToClient._fields.items.fields, dataToClient.clientData);
+                    recursiveFieldsToListData(resolverProperties, jsonSchema.properties, dataToClient._fields.items.fields, dataToClient.listData);
 
                     if (typeof dataToClient._args.sort?.options === "object") {
 
-                        dataToClient.clientData.sort = dataToClient.clientData.sort.filter((sortFieldData) => {
-                            return !sortFieldData.clientData || (sortFieldData.clientData && !Object.keys(sortFieldData.clientData).find((key) => sortFieldData.clientData[key].disabled))
+                        dataToClient.listData.sort = dataToClient.listData.sort.filter((sortFieldData) => {
+                            return !sortFieldData.listData || (sortFieldData.listData && !Object.keys(sortFieldData.listData).find((key) => sortFieldData.listData[key].disabled))
                         });
-                        dataToClient.clientData.sort = dataToClient.clientData.sort.sort((a, b) => {
+                        dataToClient.listData.sort = dataToClient.listData.sort.sort((a, b) => {
 
-                            const aOrder = Object.keys(a.clientData).reduce((n, key) => {
-                                const order = (typeof a.clientData[key].order === "number") ? a.clientData[key].order : dataToClient.clientData.length - 1;
+                            const aOrder = Object.keys(a.listData).reduce((n, key) => {
+                                const order = (typeof a.listData[key].order === "number") ? a.listData[key].order : dataToClient.listData.length - 1;
                                 return n + order;
                             }, 0);
 
-                            const bOrder = Object.keys(b.clientData).reduce((n, key) => {
-                                const order = (typeof b.clientData[key].order === "number") ? b.clientData[key].order : dataToClient.clientData.length - 1;
+                            const bOrder = Object.keys(b.listData).reduce((n, key) => {
+                                const order = (typeof b.listData[key].order === "number") ? b.listData[key].order : dataToClient.listData.length - 1;
                                 return n + order;
                             }, 0);
 
                             if (aOrder === bOrder && a.propertyNameArray.join(",") === b.propertyNameArray.join(",")) {
 
-                                const aDefault = Object.keys(a.clientData).reduce((n, key) => {
-                                    const order = (a.clientData[key].default) ? 1 : 0;
+                                const aDefault = Object.keys(a.listData).reduce((n, key) => {
+                                    const order = (a.listData[key].default) ? 1 : 0;
                                     return n + order;
                                 }, 0);
 
-                                const bDefault = Object.keys(b.clientData).reduce((n, key) => {
-                                    const order = (b.clientData[key].default) ? 1 : 0;
+                                const bDefault = Object.keys(b.listData).reduce((n, key) => {
+                                    const order = (b.listData[key].default) ? 1 : 0;
                                     return n + order;
                                 }, 0);
 
