@@ -221,7 +221,9 @@ function recursiveArgsToFormData(resolverProperties = {}, jsonSchema = {}, objec
 
 }
 
-function saveListAndTableProps({schemaObject, resolverPropertiesObject, listData, nextKey, object, resPropKey}) {
+
+
+function saveListAndTablePropsForListData({schemaObject, resolverPropertiesObject, listData, nextKey, object, resPropKey}) {
     const list = {
         ...(schemaObject?.wapplr?.listData?.list) ? schemaObject.wapplr.listData.list : {},
         ...(resolverPropertiesObject.wapplr?.listData?.list) ? resolverPropertiesObject.wapplr.listData.list : {}
@@ -285,14 +287,14 @@ function recursiveFieldsToListData(resolverProperties = {}, jsonSchema = {}, obj
 
             if (object[resPropKey] && object[resPropKey].fields){
 
-                saveListAndTableProps({schemaObject, resolverPropertiesObject, listData, nextKey, object, resPropKey});
+                saveListAndTablePropsForListData({schemaObject, resolverPropertiesObject, listData, nextKey, object, resPropKey});
 
                 const nextSchema = (resPropKey === "record") ? jsonSchema : schemaObject.properties;
                 recursiveFieldsToListData(resolverPropertiesObject, nextSchema, object[resPropKey].fields, listData, nextKey);
 
             } else {
 
-                saveListAndTableProps({schemaObject, resolverPropertiesObject, listData, nextKey, object, resPropKey});
+                saveListAndTablePropsForListData({schemaObject, resolverPropertiesObject, listData, nextKey, object, resPropKey});
 
                 if (listData.sort) {
 
@@ -338,6 +340,86 @@ function recursiveFieldsToListData(resolverProperties = {}, jsonSchema = {}, obj
                     }
 
                 }
+
+            }
+        }
+    })
+
+}
+
+
+function saveContentAndTablePropsForContentData({schemaObject, resolverPropertiesObject, contentData, nextKey, object, resPropKey}) {
+    const content = {
+        ...(schemaObject?.wapplr?.contentData?.content) ? schemaObject.wapplr.contentData.content : {},
+        ...(resolverPropertiesObject.wapplr?.contentData?.content) ? resolverPropertiesObject.wapplr.contentData.content : {}
+    };
+    if (Object.keys(content).length){
+        contentData.content[nextKey] = content;
+    }
+
+    const table = {
+        ...(schemaObject?.wapplr?.contentData?.table) ? schemaObject.wapplr.contentData.table : {},
+        ...(resolverPropertiesObject.wapplr?.contentData?.table) ? resolverPropertiesObject.wapplr.contentData.table : {}
+    };
+    if (Object.keys(table).length){
+        contentData.table[nextKey] = table;
+        contentData.table[nextKey].schemaType =
+            contentData.table[nextKey].schemaType ||
+            (typeof object[resPropKey] == "object" && object[resPropKey].typeName) ?
+                typeToString(object[resPropKey].typeName.name ? object[resPropKey].typeName.name : object[resPropKey].typeName) :
+                typeToString(object[resPropKey]);
+
+        if (contentData.table[nextKey].required) {
+
+            if (typeof schemaObject?.wapplr.default !== "undefined" && typeof contentData.table[nextKey].default == "undefined"){
+
+                contentData.table[nextKey].default = schemaObject.wapplr.default;
+
+            } else if (typeof contentData.table[nextKey].default == "undefined") {
+                if (contentData.table[nextKey].schemaType === "String") {
+                    contentData.table[nextKey].default = "";
+                }
+                if (contentData.table[nextKey].schemaType === "MongoID") {
+                    contentData.table[nextKey].default = "";
+                }
+                if (contentData.table[nextKey].schemaType === "Boolean") {
+                    contentData.table[nextKey].default = false;
+                }
+                if (contentData.table[nextKey].schemaType === "Number") {
+                    contentData.table[nextKey].default = 0;
+                }
+                if (contentData.table[nextKey].schemaType === "Float") {
+                    contentData.table[nextKey].default = 0;
+                }
+            }
+
+        }
+
+    }
+}
+
+function recursiveFieldsToContentData(resolverProperties = {}, jsonSchema = {}, object, contentData, parentKey = "") {
+
+    Object.keys(object).forEach(function (resPropKey){
+
+        if (resPropKey === "fields"){
+            recursiveFieldsToContentData(resolverProperties, jsonSchema[resPropKey], object[resPropKey], contentData, resPropKey);
+        } else {
+
+            const nextKey = (parentKey) ? parentKey + "." + resPropKey : resPropKey;
+            const schemaObject = jsonSchema[resPropKey] || {};
+            const resolverPropertiesObject = resolverProperties[resPropKey] || {};
+
+            if (object[resPropKey] && object[resPropKey].fields){
+
+                saveContentAndTablePropsForContentData({schemaObject, resolverPropertiesObject, contentData, nextKey, object, resPropKey});
+
+                const nextSchema = (resPropKey === "record") ? jsonSchema : schemaObject.properties;
+                recursiveFieldsToContentData(resolverPropertiesObject, nextSchema, object[resPropKey].fields, contentData, nextKey);
+
+            } else {
+
+                saveContentAndTablePropsForContentData({schemaObject, resolverPropertiesObject, contentData, nextKey, object, resPropKey});
 
             }
         }
@@ -634,8 +716,14 @@ export default function tryCreateDefaultToClient(p = {}) {
                 dataToClient._argsToBuilder = {};
                 recursiveArgsToBuilder(dataToClient._args, dataToClient._argsToBuilder);
 
-                dataToClient.formData = {};
                 const jsonSchema = Model.getJsonSchema({doNotDeleteDisabledFields: true});
+                dataToClient.contentData = {
+                    content: {},
+                    table: {}
+                };
+                recursiveFieldsToContentData(resolverProperties, jsonSchema.properties, dataToClient._fields, dataToClient.contentData);
+
+                dataToClient.formData = {};
                 recursiveArgsToFormData(resolverProperties, jsonSchema.properties, dataToClient._args, dataToClient.formData);
 
                 const resolverNameWithoutModelPrefix = resolver.name || dataToClient._requestName.split(Model.modelName)[1] || "send";
