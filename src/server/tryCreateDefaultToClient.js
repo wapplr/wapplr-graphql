@@ -554,7 +554,14 @@ export default function tryCreateDefaultToClient(p = {}) {
                                 fields = {...object[resPropKey].getFields()}
                             }
 
-                            const possibleTypes = GraphQLSchema.getPossibleTypes(object[resPropKey]);
+                            let possibleTypes = GraphQLSchema.getPossibleTypes(object[resPropKey]);
+                            if (!possibleTypes?.length && saveFields.typeName?.toString() === "ErrorInterface") {
+                                possibleTypes = [
+                                    schemaComposer.getOTC('ValidationError').getType(),
+                                    schemaComposer.getOTC('MongoError').getType(),
+                                    schemaComposer.getOTC('RuntimeError').getType()
+                                ]
+                            }
                             if (possibleTypes && possibleTypes.length){
                                 possibleTypes.forEach(function (possibleType) {
                                     fields[possibleType.name] = {
