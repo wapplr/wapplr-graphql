@@ -235,20 +235,23 @@ export default function initGraphql(p = {}) {
                                                     return (post && post._id)
                                                 }) : [];
                                             }
-                                            const userPostType =
-                                                (rp.context.req.user && rp.context.req.session.modelName) ?
-                                                    (rp.context.req.session.modelName === modelProperties.ref) ?
-                                                        postType :
-                                                        await wapp.server.postTypes.getPostType({name: rp.context.req.session.modelName.toLowerCase()}) :
-                                                    null;
 
-                                            const userStatusManager = (userPostType) ? userPostType.statusManager : null;
-                                            const isAdmin = (userStatusManager) ? rp.context.req.user._status_isFeatured : false;
+                                            if (modelProperties.required || modelProperties.wapplr?.required) {
+                                                const userPostType =
+                                                    (rp.context.req.user && rp.context.req.session.modelName) ?
+                                                        (rp.context.req.session.modelName === modelProperties.ref) ?
+                                                            postType :
+                                                            await wapp.server.postTypes.getPostType({name: rp.context.req.session.modelName.toLowerCase()}) :
+                                                        null;
 
-                                            if (isAdmin) {
-                                                return (response && response.length) ? response.filter((post) => {
-                                                    return (post && post._id)
-                                                }) : [];
+                                                const userStatusManager = (userPostType) ? userPostType.statusManager : null;
+                                                const isAdmin = (userStatusManager) ? rp.context.req.user._status_isFeatured : false;
+
+                                                if (isAdmin) {
+                                                    return (response && response.length) ? response.filter((post) => {
+                                                        return (post && post._id)
+                                                    }) : [];
+                                                }
                                             }
 
                                             return (response && response.length) ? response.filter((post) => {
@@ -267,18 +270,21 @@ export default function initGraphql(p = {}) {
                                             if (!postType) {
                                                 return (post && post._id) ? post : null;
                                             }
-                                            const userPostType =
-                                                (rp.context.req.user && rp.context.req.session.modelName) ?
-                                                    (rp.context.req.session.modelName === modelProperties.ref) ?
-                                                        postType :
-                                                        await wapp.server.postTypes.getPostType({name: rp.context.req.session.modelName.toLowerCase()}) :
-                                                    null;
 
-                                            const userStatusManager = (userPostType) ? userPostType.statusManager : null;
-                                            const isAdmin = (userStatusManager) ? rp.context.req.user._status_isFeatured : false;
+                                            if (modelProperties.required || modelProperties.wapplr?.required) {
+                                                const userPostType =
+                                                    (rp.context.req.user && rp.context.req.session.modelName) ?
+                                                        (rp.context.req.session.modelName === modelProperties.ref) ?
+                                                            postType :
+                                                            await wapp.server.postTypes.getPostType({name: rp.context.req.session.modelName.toLowerCase()}) :
+                                                        null;
 
-                                            if (isAdmin) {
-                                                return (post && post._id) ? post : null;
+                                                const userStatusManager = (userPostType) ? userPostType.statusManager : null;
+                                                const isAdmin = (userStatusManager) ? rp.context.req.user._status_isFeatured : false;
+
+                                                if (isAdmin) {
+                                                    return (post && post._id) ? post : null;
+                                                }
                                             }
 
                                             return (post && post._id) ? (post._status_isNotDeleted && post._author_status_isNotDeleted) ? post : null : post;
