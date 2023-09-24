@@ -228,7 +228,7 @@ export default function initGraphql(p = {}) {
                                             if (!rp.args._ids?.length) {
                                                 return [];
                                             }
-                                            const response = await next(rp);
+                                            const response = await next({...rp, internal: true});
                                             const postType = (wapp.server.postTypes) ? await wapp.server.postTypes.getPostType({name: modelProperties.ref.toLowerCase()}) : null;
                                             if (!postType) {
                                                 return (response && response.length) ? response.filter((post) => {
@@ -547,11 +547,15 @@ export default function initGraphql(p = {}) {
 
                             TC.addResolver(resolverWithDefaults);
 
-                            if (resolverWithDefaults.kind === "query") {
-                                schemaComposer.Query.addFields({[requestName]: TC.getResolver(resolverWithDefaults.name)})
-                            }
-                            if (resolverWithDefaults.kind === "mutation") {
-                                schemaComposer.Mutation.addFields({[requestName]: TC.getResolver(resolverWithDefaults.name)})
+                            if (!resolverProperties.internal) {
+
+                                if (resolverWithDefaults.kind === "query") {
+                                    schemaComposer.Query.addFields({[requestName]: TC.getResolver(resolverWithDefaults.name)})
+                                }
+                                if (resolverWithDefaults.kind === "mutation") {
+                                    schemaComposer.Mutation.addFields({[requestName]: TC.getResolver(resolverWithDefaults.name)})
+                                }
+
                             }
 
                             Object.defineProperty(resolversForTC[resolverName], "initialized", {
