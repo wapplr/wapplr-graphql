@@ -439,7 +439,17 @@ export default function initGraphql(p = {}) {
 
                                         const resolver = server.graphql.resolvers[TCName][resolverName];
 
-                                        tryCreateDefaultToClient({resolver, DEV, GraphQLSchema: server.graphql.schema, schemaComposer, Model: server.graphql.TypeComposers[TCName].Model});
+                                        if (!resolver.internal) {
+
+                                            tryCreateDefaultToClient({
+                                                resolver,
+                                                DEV,
+                                                GraphQLSchema: server.graphql.schema,
+                                                schemaComposer,
+                                                Model: server.graphql.TypeComposers[TCName].Model
+                                            });
+
+                                        }
 
                                         if (resolver.toClient) {
 
