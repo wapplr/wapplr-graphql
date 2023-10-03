@@ -265,7 +265,7 @@ export default function initGraphql(p = {}) {
                                             if (!rp.args._id) {
                                                 return null;
                                             }
-                                            const post = await next(rp);
+                                            const post = await next({...rp, internal: true});
                                             const postType = (wapp.server.postTypes) ? await wapp.server.postTypes.getPostType({name: modelProperties.ref.toLowerCase()}) : null;
                                             if (!postType) {
                                                 return (post && post._id) ? post : null;
