@@ -310,6 +310,15 @@ export default function initGraphql(p = {}) {
 
                     }
 
+                    server.graphql.TypeComposers[modelName].wrapResolverResolve('pagination', next => async rp => {
+                        disabledFields.forEach((key)=>{
+                            if (!rp.projection.items[key]) {
+                                rp.projection.items[key] = {};
+                            }
+                        });
+                        return await next(rp);
+                    });
+
                 } catch (e){
                     console.log(e)
                 }
