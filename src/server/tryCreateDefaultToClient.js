@@ -3,6 +3,8 @@ import {MutationAdapter, QueryAdapter} from "./adapters";
 
 import { parseType } from "graphql/language/parser";
 
+import {copyObject} from "wapplr/dist/common/utils";
+
 function recursiveFieldsToBuilder(object, saveFields) {
     Object.keys(object).forEach(function (resPropKey){
         if (resPropKey === "fields"){
@@ -439,12 +441,12 @@ function savePropsForFieldsData({schemaObject, resolverPropertiesObject, content
 
 }
 
-function recursiveFieldsToFieldsData(resolverProperties = {}, jsonSchema = {}, object, contentData, parentKey = "") {
+function recursiveFieldsToFieldsData(getModel, resolverProperties = {}, jsonSchema = {}, object, contentData, parentKey = "") {
 
     Object.keys(object).forEach(function (resPropKey){
 
         if (resPropKey === "fields"){
-            recursiveFieldsToFieldsData(resolverProperties, jsonSchema[resPropKey], object[resPropKey], contentData, resPropKey);
+            recursiveFieldsToFieldsData(getModel, resolverProperties, jsonSchema[resPropKey], object[resPropKey], contentData, resPropKey);
         } else {
 
             const nextKey = (parentKey) ? parentKey + "." + resPropKey : resPropKey;
@@ -455,8 +457,15 @@ function recursiveFieldsToFieldsData(resolverProperties = {}, jsonSchema = {}, o
 
                 savePropsForFieldsData({schemaObject, resolverPropertiesObject, contentData, nextKey});
 
-                const nextSchema = (resPropKey === "items" || resPropKey === "record") ? jsonSchema : schemaObject.properties;
-                recursiveFieldsToFieldsData(resolverPropertiesObject, nextSchema, object[resPropKey].fields, contentData, nextKey);
+                let nextSchema = (resPropKey === "items" || resPropKey === "record") ? jsonSchema : schemaObject.properties;
+                if (schemaObject.ref && getModel(schemaObject.ref)) {
+                    const refSchema = getModel(schemaObject.ref).getJsonSchema({doNotDeleteDisabledFields: true});
+                    if (refSchema) {
+                        nextSchema = refSchema.properties;
+                    }
+                }
+
+                recursiveFieldsToFieldsData(getModel, resolverPropertiesObject, nextSchema, object[resPropKey].fields, contentData, nextKey);
 
             } else {
 
@@ -513,7 +522,7 @@ function tryBuildAQueryFromClientData(p = {}) {
 
 export default function tryCreateDefaultToClient(p = {}) {
 
-    const {resolver, DEV, GraphQLSchema, schemaComposer, Model} = p;
+    const {resolver, DEV, GraphQLSchema, schemaComposer, Model, getModel} = p;
 
     if (resolver && !resolver.toClient){
 
@@ -726,8 +735,10 @@ export default function tryCreateDefaultToClient(p = {}) {
 
             delete dataToClient.typeName;
 
-            if (dataToClient.fields){
-                dataToClient._fields = dataToClient.fields;
+            const fields = dataToClient.fields;
+
+            if (fields){
+                dataToClient._fields = copyObject(fields);
                 delete dataToClient.fields;
             }
 
@@ -738,7 +749,7 @@ export default function tryCreateDefaultToClient(p = {}) {
             if (dataToClient._fields){
 
                 dataToClient._fieldsData = {};
-                recursiveFieldsToFieldsData(resolverProperties, jsonSchema.properties, dataToClient._fields, dataToClient._fieldsData);
+                recursiveFieldsToFieldsData(getModel, resolverProperties, jsonSchema.properties, dataToClient._fields, dataToClient._fieldsData);
 
                 Object.keys(dataToClient._fieldsData).forEach((nestedKeyString)=>{
 
@@ -858,7 +869,7 @@ export default function tryCreateDefaultToClient(p = {}) {
 
                 }
 
-                recursiveFieldsToListData(resolverProperties, jsonSchema.properties, dataToClient._fields.items.fields, dataToClient.listData);
+                recursiveFieldsToListData(resolverProperties, jsonSchema.properties, fields.items.fields, dataToClient.listData);
 
                 if (typeof dataToClient._args.sort?.options === "object") {
 
@@ -867,32 +878,33 @@ export default function tryCreateDefaultToClient(p = {}) {
                     });
                     dataToClient.listData.sort = dataToClient.listData.sort.sort((a, b) => {
 
-                        const aOrder = Object.keys(a.listData).reduce((n, key) => {
+                        const aOrder = a?.listData ? Object.keys(a.listData).reduce((n, key) => {
                             const order = (typeof a.listData[key].order === "number") ? a.listData[key].order : dataToClient.listData.length - 1;
                             return n + order;
-                        }, 0);
+                        }, 0) : dataToClient.listData.length - 1;
 
-                        const bOrder = Object.keys(b.listData).reduce((n, key) => {
+                        const bOrder = b?.listData ? Object.keys(b.listData).reduce((n, key) => {
                             const order = (typeof b.listData[key].order === "number") ? b.listData[key].order : dataToClient.listData.length - 1;
                             return n + order;
-                        }, 0);
+                        }, 0) : dataToClient.listData.length - 1;
 
                         if (aOrder === bOrder && a.propertyNameArray.join(",") === b.propertyNameArray.join(",")) {
 
-                            const aDefault = Object.keys(a.listData).reduce((n, key) => {
+                            const aDefault = a?.listData ? Object.keys(a.listData).reduce((n, key) => {
                                 const order = (a.listData[key].default) ? 1 : 0;
                                 return n + order;
-                            }, 0);
+                            }, 0) : 0;
 
-                            const bDefault = Object.keys(b.listData).reduce((n, key) => {
+                            const bDefault = b?.listData ? Object.keys(b.listData).reduce((n, key) => {
                                 const order = (b.listData[key].default) ? 1 : 0;
                                 return n + order;
-                            }, 0);
+                            }, 0) : 0;
 
                             return (bDefault) ? 1 : (aDefault) ? -1 : 0
                         }
 
                         return (aOrder < bOrder) ? -1 : (aOrder > bOrder) ? 1 : 0;
+
                     })
 
                 }
@@ -908,6 +920,7 @@ export default function tryCreateDefaultToClient(p = {}) {
                 delete dataToClient._args;
                 delete dataToClient._argsToBuilder;
                 delete dataToClient._fields;
+                delete dataToClient._fieldsData;
                 delete dataToClient._fieldsToBuilder;
             }
 

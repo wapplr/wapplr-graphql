@@ -456,7 +456,10 @@ export default function initGraphql(p = {}) {
                                                 DEV,
                                                 GraphQLSchema: server.graphql.schema,
                                                 schemaComposer,
-                                                Model: server.graphql.TypeComposers[TCName].Model
+                                                Model: server.graphql.TypeComposers[TCName].Model,
+                                                getModel: (TCName)=>{
+                                                    return server.graphql.TypeComposers[TCName]?.Model
+                                                }
                                             });
 
                                         }
