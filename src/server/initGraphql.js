@@ -58,7 +58,9 @@ export default function initGraphql(p = {}) {
                     const relations = [];
                     const properties = {};
 
-                    function recursiveCheck(tree, parentKey = "") {
+                    const projection = {};
+
+                    function recursiveCheck(tree, parentKey = "", projection) {
                         Object.keys(tree).forEach(function (key) {
 
                             const modelProperties = tree[key];
@@ -87,7 +89,9 @@ export default function initGraphql(p = {}) {
                                         readOnlyFieldFilters[nextKey] = addGraphqlComposeReadOnlyFieldsFilter;
                                     }
 
-                                    recursiveCheck((type?.tree) ? type.tree : modelProperties, nextKey);
+                                    projection[nextKey] = {};
+
+                                    recursiveCheck((type?.tree) ? type.tree : modelProperties, nextKey, projection[nextKey]);
                                 } else {
 
                                     const options = modelProperties.wapplr || {};
@@ -119,6 +123,8 @@ export default function initGraphql(p = {}) {
 
                                     properties[nextKey] = modelProperties;
 
+                                    projection[key] = {};
+
                                     if (required){
                                         if (parentKey && requiredFields.indexOf(parentKey) === -1){
                                             requiredFields.push(parentKey);
@@ -133,7 +139,7 @@ export default function initGraphql(p = {}) {
                         })
                     }
 
-                    recursiveCheck(Model.schema.tree);
+                    recursiveCheck(Model.schema.tree, undefined, projection);
 
                     if (!initRelations) {
                         const virtuals = Model.schema.virtuals && Object.fromEntries(
@@ -301,7 +307,7 @@ export default function initGraphql(p = {}) {
                                 const relProps = {
                                     resolver: () => resolver,
                                     prepareArgs: prepareArgs,
-                                    projection: {[nextKey]: true},
+                                    projection: {[nextKey]: {}},
                                 };
 
                                 server.graphql.TypeComposers[modelName].addRelation(nextKey, relProps)
@@ -311,12 +317,12 @@ export default function initGraphql(p = {}) {
                     }
 
                     server.graphql.TypeComposers[modelName].wrapResolverResolve('dataLoaderMany', next => async rp => {
-                        rp.projection['*'] = {};
+                        rp.projection['*'] = true;
                         return await next(rp);
                     });
 
                     server.graphql.TypeComposers[modelName].wrapResolverResolve('pagination', next => async rp => {
-                        rp.projection['*'] = {};
+                        rp.projection.items = projection;
                         return await next(rp);
                     });
 
