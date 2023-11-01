@@ -226,7 +226,12 @@ export default function initGraphql(p = {}) {
 
                     if (initRelations) {
                         relations.forEach(function ({nextKey, modelProperties}) {
-                            if (server.graphql.TypeComposers[modelProperties.ref] && modelProperties.ref !== modelName) {
+                            if (
+                                (
+                                    (server.graphql.TypeComposers[modelProperties.ref] && modelProperties.ref !== modelName) ||
+                                    (server.graphql.TypeComposers[modelProperties.ref] && modelProperties.ref === modelName && modelProperties.wapplr?.refEnableSelfRelation)
+                                ) && disabledFields.indexOf(nextKey) === -1
+                            ) {
 
                                 const resolver =
                                     (modelProperties.many) ?

@@ -210,10 +210,6 @@ function recursiveArgsToFormData(resolverProperties = {}, jsonSchema = {}, objec
                         }
                     }
 
-                    if (saveFields[nextKey].multiple && saveFields[nextKey].required && typeof saveFields[nextKey].requiredAsteriskDisableShowOnLabel == "undefined"){
-                        saveFields[nextKey].requiredAsteriskDisableShowOnLabel = true;
-                    }
-
                 } else {
                     saveFields[nextKey].schemaType = typeToString(object[resPropKey]);
                 }
@@ -568,10 +564,6 @@ export default function tryCreateDefaultToClient(p = {}) {
                                 if (object[resPropKey].constructor?.name === "NonNullComposer"){
                                     nonNullComposer = true;
                                 }
-                            }
-
-                            if (depth >= maxDepth ){
-                                return;
                             }
 
                             recursiveDataToClient(GraphQLSchema, schemaComposer, object[resPropKey], saveFields, nonNullComposer, listType, depth);
