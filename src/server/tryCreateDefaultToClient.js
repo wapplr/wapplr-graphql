@@ -737,6 +737,7 @@ export default function tryCreateDefaultToClient(p = {}) {
             const jsonSchema = Model.getJsonSchema({doNotDeleteDisabledFields: true});
 
             const resolverNameWithoutModelPrefix = resolver.name || dataToClient._requestName.split(Model.modelName)[1] || dataToClient._requestName;
+            const nameForRemoveFromQuery = resolverProperties.nameForRemoveFromQuery || resolverNameWithoutModelPrefix;
 
             if (dataToClient._fields){
 
@@ -747,7 +748,7 @@ export default function tryCreateDefaultToClient(p = {}) {
 
                     const options = dataToClient._fieldsData[nestedKeyString];
 
-                    const remove = options?.removeFromQuery && Array.isArray(options.removeFromQuery) ? options.removeFromQuery.indexOf(resolverNameWithoutModelPrefix) > -1 : false;
+                    const remove = options?.removeFromQuery && Array.isArray(options.removeFromQuery) ? options.removeFromQuery.indexOf(nameForRemoveFromQuery) > -1 : false;
 
                     if (remove) {
 
