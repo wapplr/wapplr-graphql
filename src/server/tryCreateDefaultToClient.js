@@ -737,7 +737,7 @@ export default function tryCreateDefaultToClient(p = {}) {
             const jsonSchema = Model.getJsonSchema({doNotDeleteDisabledFields: true});
 
             const resolverNameWithoutModelPrefix = resolver.name || dataToClient._requestName.split(Model.modelName)[1] || dataToClient._requestName;
-            const nameForRemoveFromQuery = resolverProperties.nameForRemoveFromQuery || resolverNameWithoutModelPrefix;
+            const nameForRemoveFromQuery = resolverProperties && resolverProperties.nameForRemoveFromQuery ? resolverProperties.nameForRemoveFromQuery : resolverNameWithoutModelPrefix;
 
             if (dataToClient._fields){
 
