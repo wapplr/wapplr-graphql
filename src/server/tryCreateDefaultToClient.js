@@ -4,6 +4,7 @@ import {MutationAdapter, QueryAdapter} from "./adapters";
 import { parseType } from "graphql/language/parser";
 
 import {copyObject} from "wapplr/dist/common/utils";
+import {deCapitalize} from "../common/utils";
 
 function recursiveFieldsToBuilder(object, saveFields) {
     Object.keys(object).forEach(function (resPropKey){
@@ -124,7 +125,7 @@ function recursiveArgsToFormData(resolverProperties = {}, jsonSchema = {}, objec
                 const ref = schemaObject.ref || schemaObject.wapplr?.ref || schemaObject["x-ref"];
 
                 if (ref && typeof saveFields[nextKey].refPostType == "undefined"){
-                    saveFields[nextKey].refPostType = ref.toLowerCase();
+                    saveFields[nextKey].refPostType = deCapitalize(ref);
                 }
 
                 const disableFindByAuthor =  schemaObject.wapplr?.disableFindByAuthor;

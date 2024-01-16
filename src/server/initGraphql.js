@@ -1,4 +1,4 @@
-import {defaultDescriptor} from "../common/utils";
+import {deCapitalize, defaultDescriptor} from "../common/utils";
 import tryCreateDefaultToClient from "./tryCreateDefaultToClient";
 import {createRequests} from "../common";
 
@@ -239,8 +239,13 @@ export default function initGraphql(p = {}) {
                                             if (!rp.args._ids?.length) {
                                                 return [];
                                             }
-                                            const response = await next({...rp, internal: true});
-                                            const postType = (wapp.server.postTypes) ? await wapp.server.postTypes.getPostType({name: modelProperties.ref.toLowerCase()}) : null;
+                                            let response = null;
+                                            try {
+                                                response = await next({...rp, internal: true});
+                                            } catch (e) {
+                                                console.log(e, modelName, modelProperties.ref)
+                                            }
+                                            const postType = (wapp.server.postTypes) ? await wapp.server.postTypes.getPostType({name: deCapitalize(modelProperties.ref)}) : null;
                                             if (!postType) {
                                                 return (response && response.length) ? response.filter((post) => {
                                                     return (post && post._id)
@@ -252,7 +257,7 @@ export default function initGraphql(p = {}) {
                                                     (rp.context.req.user && rp.context.req.session.modelName) ?
                                                         (rp.context.req.session.modelName === modelProperties.ref) ?
                                                             postType :
-                                                            await wapp.server.postTypes.getPostType({name: rp.context.req.session.modelName.toLowerCase()}) :
+                                                            await wapp.server.postTypes.getPostType({name: deCapitalize(rp.context.req.session.modelName)}) :
                                                         null;
 
                                                 const userStatusManager = (userPostType) ? userPostType.statusManager : null;
@@ -276,8 +281,13 @@ export default function initGraphql(p = {}) {
                                             if (!rp.args._id) {
                                                 return null;
                                             }
-                                            const post = await next({...rp, internal: true});
-                                            const postType = (wapp.server.postTypes) ? await wapp.server.postTypes.getPostType({name: modelProperties.ref.toLowerCase()}) : null;
+                                            let post = null;
+                                            try {
+                                                post = await next({...rp, internal: true});
+                                            } catch (e) {
+                                                console.log(e, modelName, modelProperties.ref)
+                                            }
+                                            const postType = (wapp.server.postTypes) ? await wapp.server.postTypes.getPostType({name: deCapitalize(modelProperties.ref)}) : null;
                                             if (!postType) {
                                                 return (post && post._id) ? post : null;
                                             }
@@ -287,7 +297,7 @@ export default function initGraphql(p = {}) {
                                                     (rp.context.req.user && rp.context.req.session.modelName) ?
                                                         (rp.context.req.session.modelName === modelProperties.ref) ?
                                                             postType :
-                                                            await wapp.server.postTypes.getPostType({name: rp.context.req.session.modelName.toLowerCase()}) :
+                                                            await wapp.server.postTypes.getPostType({name: deCapitalize(rp.context.req.session.modelName)}) :
                                                         null;
 
                                                 const userStatusManager = (userPostType) ? userPostType.statusManager : null;
