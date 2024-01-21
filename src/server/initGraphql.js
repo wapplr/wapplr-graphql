@@ -243,7 +243,7 @@ export default function initGraphql(p = {}) {
                                             try {
                                                 response = await next({...rp, internal: true});
                                             } catch (e) {
-                                                console.log(e, modelName, modelProperties.ref)
+                                                console.log(e, 'dataLoaderMany', modelName, modelProperties.ref, rp?.context?.req?.wappRequest);
                                             }
                                             const postType = (wapp.server.postTypes) ? await wapp.server.postTypes.getPostType({name: deCapitalize(modelProperties.ref)}) : null;
                                             if (!postType) {
@@ -285,7 +285,7 @@ export default function initGraphql(p = {}) {
                                             try {
                                                 post = await next({...rp, internal: true});
                                             } catch (e) {
-                                                console.log(e, modelName, modelProperties.ref)
+                                                console.log(e, 'findById', modelName, modelProperties.ref, rp?.context?.req?.wappRequest);
                                             }
                                             const postType = (wapp.server.postTypes) ? await wapp.server.postTypes.getPostType({name: deCapitalize(modelProperties.ref)}) : null;
                                             if (!postType) {
@@ -333,12 +333,24 @@ export default function initGraphql(p = {}) {
 
                     server.graphql.TypeComposers[modelName].wrapResolverResolve('dataLoaderMany', next => async rp => {
                         rp.projection['*'] = true;
-                        return await next(rp);
+                        let response = [];
+                        try {
+                            response = await next(rp);
+                        } catch (e) {
+                            console.log(e, 'dataLoaderMany2', modelName, rp?.context?.req?.wappRequest)
+                        }
+                        return response;
                     });
 
                     server.graphql.TypeComposers[modelName].wrapResolverResolve('pagination', next => async rp => {
                         rp.projection.items = projection;
-                        return await next(rp);
+                        let response;
+                        try {
+                            response = await next(rp);
+                        } catch (e) {
+                            console.log(e, 'pagination', modelName, rp?.context?.req?.wappRequest)
+                        }
+                        return response;
                     });
 
                 } catch (e){
