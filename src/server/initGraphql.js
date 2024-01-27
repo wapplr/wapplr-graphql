@@ -46,7 +46,10 @@ export default function initGraphql(p = {}) {
             const {Model, schemaComposer = server.graphql.schemaComposer, initRelations} = p;
             const modelName = Model.modelName;
 
-            if (!server.graphql.TypeComposers[modelName] || initRelations) {
+            if (
+                (!server.graphql.TypeComposers[modelName] && !initRelations) ||
+                (server.graphql.TypeComposers[modelName] && initRelations && !server.graphql.initializedRelations)
+            ) {
 
                 try {
 
@@ -141,7 +144,8 @@ export default function initGraphql(p = {}) {
 
                     recursiveCheck(Model.schema.tree, undefined, projection);
 
-                    if (!initRelations) {
+                    if (!server.graphql.TypeComposers[modelName] && !initRelations) {
+
                         const virtuals = Model.schema.virtuals && Object.fromEntries(
                             Object.entries(Model.schema.virtuals).filter(([key]) => (
                                 Model.schema.virtuals[key].path &&
@@ -224,7 +228,32 @@ export default function initGraphql(p = {}) {
 
                     }
 
-                    if (initRelations) {
+                    if (server.graphql.TypeComposers[modelName] && initRelations && !server.graphql.initializedRelations) {
+
+                        server.graphql.TypeComposers[modelName].wrapResolverResolve('dataLoaderMany', next => async rp => {
+                            rp.projection['*'] = true;
+                            let response = [];
+                            const deep = (rp.deep || 0) + 1;
+                            try {
+                                response = await next({...rp, deep});
+                            } catch (e) {
+                                console.log(e, 'dataLoaderMany2', modelName, deep, rp?.context?.req?.wappRequest)
+                            }
+                            return response;
+                        });
+
+                        server.graphql.TypeComposers[modelName].wrapResolverResolve('pagination', next => async rp => {
+                            rp.projection.items = projection;
+                            let response;
+                            const deep = (rp.deep || 0) + 1;
+                            try {
+                                response = await next({...rp, deep});
+                            } catch (e) {
+                                console.log(e, 'pagination', modelName, deep, rp?.context?.req?.wappRequest)
+                            }
+                            return response;
+                        });
+
                         relations.forEach(function ({nextKey, modelProperties}) {
                             if (
                                 (
@@ -240,10 +269,15 @@ export default function initGraphql(p = {}) {
                                                 return [];
                                             }
                                             let response = null;
+                                            const deep = (rp.deep || 0) + 1;
                                             try {
-                                                response = await next({...rp, internal: true});
+                                                response = await next({
+                                                    ...rp,
+                                                    internal: true,
+                                                    deep
+                                                });
                                             } catch (e) {
-                                                console.log(e, 'dataLoaderMany', modelName, modelProperties.ref, rp?.context?.req?.wappRequest);
+                                                console.log(e, 'dataLoaderMany', modelName, nextKey, modelProperties.ref, deep, nextKey, rp?.context?.req?.wappRequest);
                                             }
                                             const postType = (wapp.server.postTypes) ? await wapp.server.postTypes.getPostType({name: deCapitalize(modelProperties.ref)}) : null;
                                             if (!postType) {
@@ -282,10 +316,11 @@ export default function initGraphql(p = {}) {
                                                 return null;
                                             }
                                             let post = null;
+                                            const deep = (rp.deep || 0) + 1;
                                             try {
-                                                post = await next({...rp, internal: true});
+                                                post = await next({...rp, internal: true, deep});
                                             } catch (e) {
-                                                console.log(e, 'findById', modelName, modelProperties.ref, rp?.context?.req?.wappRequest);
+                                                console.log(e, 'findById', modelName, nextKey, modelProperties.ref, deep, nextKey, rp?.context?.req?.wappRequest);
                                             }
                                             const postType = (wapp.server.postTypes) ? await wapp.server.postTypes.getPostType({name: deCapitalize(modelProperties.ref)}) : null;
                                             if (!postType) {
@@ -331,28 +366,6 @@ export default function initGraphql(p = {}) {
 
                     }
 
-                    server.graphql.TypeComposers[modelName].wrapResolverResolve('dataLoaderMany', next => async rp => {
-                        rp.projection['*'] = true;
-                        let response = [];
-                        try {
-                            response = await next(rp);
-                        } catch (e) {
-                            console.log(e, 'dataLoaderMany2', modelName, rp?.context?.req?.wappRequest)
-                        }
-                        return response;
-                    });
-
-                    server.graphql.TypeComposers[modelName].wrapResolverResolve('pagination', next => async rp => {
-                        rp.projection.items = projection;
-                        let response;
-                        try {
-                            response = await next(rp);
-                        } catch (e) {
-                            console.log(e, 'pagination', modelName, rp?.context?.req?.wappRequest)
-                        }
-                        return response;
-                    });
-
                 } catch (e){
                     console.log(e)
                 }
@@ -375,7 +388,8 @@ export default function initGraphql(p = {}) {
                         Object.keys(models).forEach(function (modelName) {
                             const Model = models[modelName];
                             server.graphql.composeFromModel({Model, initRelations: true});
-                        })
+                        });
+                        server.graphql.initializedRelations = true;
                     }
                 });
             }
@@ -433,100 +447,114 @@ export default function initGraphql(p = {}) {
 
         function defaultInit() {
 
-            const schemaComposer = server.graphql.schemaComposer;
+            const server = wapp.server;
 
-            server.graphql.generateFromDatabase();
-            server.graphql.initResolvers();
+            if (!server.graphql.initialized) {
 
-            if(!Object.keys(schemaComposer.Query.getFields()).length) {
+                const schemaComposer = server.graphql.schemaComposer;
 
-                const type = schemaComposer["createObjectTC"]({
-                    name: "ISay",
-                    fields: {
-                        something: {
-                            type: "String",
+                server.graphql.generateFromDatabase();
+                server.graphql.initResolvers();
+
+                if (!Object.keys(schemaComposer.Query.getFields()).length) {
+
+                    const type = schemaComposer["createObjectTC"]({
+                        name: "ISay",
+                        fields: {
+                            something: {
+                                type: "String",
+                            }
                         }
-                    }
-                });
+                    });
 
-                schemaComposer.Query.addFields({
-                    Say: {
-                        name: "SaySomething",
-                        args: {that: {type: "String"}},
-                        resolve: function (_, args) {
-                            const text = (args.that) ? args.that : "Hi!";
-                            return {something: "Isay: " + text}
-                        },
-                        kind: "query",
-                        type: type
-                    }
-                })
+                    schemaComposer.Query.addFields({
+                        Say: {
+                            name: "SaySomething",
+                            args: {that: {type: "String"}},
+                            resolve: function (_, args) {
+                                const text = (args.that) ? args.that : "Hi!";
+                                return {something: "Isay: " + text}
+                            },
+                            kind: "query",
+                            type: type
+                        }
+                    })
 
-            }
+                }
 
-            server.graphql.buildSchema();
+                server.graphql.buildSchema();
 
-            if (wapp.states) {
-                wapp.states.addHandle({
-                    requestsFromGraphQl: function requestsFromGraphQl(req, res, next) {
+                server.graphql.initializedRelations = false;
+                server.graphql.generateFromDatabase();
+                server.graphql.initResolvers();
 
-                        const graphql = res.wappResponse.store.getState("res.graphql");
+                server.graphql.buildSchema();
 
-                        if (!graphql) {
-                            const graphqlState = {};
-                            if (server.graphql.resolvers) {
+                if (wapp.states) {
+                    wapp.states.addHandle({
+                        requestsFromGraphQl: function requestsFromGraphQl(req, res, next) {
 
-                                Object.keys(server.graphql.resolvers).forEach(function (TCName) {
+                            const graphql = res.wappResponse.store.getState("res.graphql");
 
-                                    Object.keys(server.graphql.resolvers[TCName]).forEach(function (resolverName) {
+                            if (!graphql) {
+                                const graphqlState = {};
+                                if (server.graphql.resolvers) {
 
-                                        const resolver = server.graphql.resolvers[TCName][resolverName];
+                                    Object.keys(server.graphql.resolvers).forEach(function (TCName) {
 
-                                        if (!resolver.internal) {
+                                        Object.keys(server.graphql.resolvers[TCName]).forEach(function (resolverName) {
 
-                                            tryCreateDefaultToClient({
-                                                resolver,
-                                                DEV,
-                                                GraphQLSchema: server.graphql.schema,
-                                                schemaComposer,
-                                                Model: server.graphql.TypeComposers[TCName].Model,
-                                                getModel: (TCName)=>{
-                                                    return server.graphql.TypeComposers[TCName]?.Model
-                                                }
-                                            });
+                                            const resolver = server.graphql.resolvers[TCName][resolverName];
 
-                                        }
+                                            if (!resolver.internal) {
 
-                                        if (resolver.toClient) {
+                                                tryCreateDefaultToClient({
+                                                    resolver,
+                                                    DEV: wapp.globals.DEV,
+                                                    GraphQLSchema: server.graphql.schema,
+                                                    schemaComposer,
+                                                    Model: server.graphql.TypeComposers[TCName].Model,
+                                                    getModel: (TCName) => {
+                                                        return server.graphql.TypeComposers[TCName]?.Model
+                                                    }
+                                                });
 
-                                            const type = resolver.kind;
-                                            const requestName = resolver.requestName;
-
-                                            if (!graphqlState[type]) {
-                                                graphqlState[type] = {};
                                             }
 
-                                            graphqlState[type][requestName] = resolver.toClient();
+                                            if (resolver.toClient) {
 
-                                        }
+                                                const type = resolver.kind;
+                                                const requestName = resolver.requestName;
+
+                                                if (!graphqlState[type]) {
+                                                    graphqlState[type] = {};
+                                                }
+
+                                                graphqlState[type][requestName] = resolver.toClient();
+
+                                            }
+                                        })
                                     })
-                                })
+
+                                }
+
+                                res.wappResponse.store.dispatch(wapp.states.runAction("res", {
+                                    name: "graphql",
+                                    value: graphqlState
+                                }));
 
                             }
 
-                            res.wappResponse.store.dispatch(wapp.states.runAction("res", {
-                                name: "graphql",
-                                value: graphqlState
-                            }));
+                            createRequests({wapp, req, res});
+
+                            next();
 
                         }
+                    })
+                }
 
-                        createRequests({wapp, req, res});
+                server.graphql.initialized = true;
 
-                        next();
-
-                    }
-                })
             }
 
         }
@@ -567,7 +595,7 @@ export default function initGraphql(p = {}) {
                 const TC = server.graphql.TypeComposers[TCName];
                 const resolversForTC = server.graphql.resolvers[TCName];
 
-                if (TC && Object.keys(resolversForTC).length){
+                if (TC && Object.keys(resolversForTC).length) {
 
                     Object.keys(resolversForTC).forEach(function (resolverName) {
 
