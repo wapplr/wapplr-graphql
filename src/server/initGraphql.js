@@ -9,8 +9,6 @@ import {composeWithMongoose, resolverFactory} from "graphql-compose-mongoose";
 export default function initGraphql(p = {}) {
 
     const {wapp} = p;
-    const {globals = {}} = wapp;
-    const {DEV} = globals;
     const {server} = wapp;
 
     const globalGraphqlConfig = (server.config && server.config.graphql) ? server.config.graphql : {};
