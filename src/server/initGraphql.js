@@ -2,9 +2,10 @@ import {deCapitalize, defaultDescriptor} from "../common/utils";
 import tryCreateDefaultToClient from "./tryCreateDefaultToClient";
 import {createRequests} from "../common";
 
-import {graphqlHTTP} from "express-graphql";
+import {createHandler} from "graphql-http/lib/use/express";
 import {SchemaComposer} from "graphql-compose";
 import {composeWithMongoose, resolverFactory} from "graphql-compose-mongoose";
+import renderGraphiQL from "./renderGraphiQl"
 
 export default function initGraphql(p = {}) {
 
@@ -26,14 +27,14 @@ export default function initGraphql(p = {}) {
             const newComposers = JSON.stringify(Object.keys(server.graphql.TypeComposers));
 
             const newResolvers = JSON.stringify(Object.keys(server.graphql.resolvers).map(function (TCName) {
-                return JSON.stringify(Object.keys(server.graphql.resolvers[TCName]).map(function (resolverName){
+                return JSON.stringify(Object.keys(server.graphql.resolvers[TCName]).map(function (resolverName) {
                     return (server.graphql.resolvers[TCName][resolverName].initialized) ? resolverName : "";
                 }))
             }));
 
-            if (newComposers+newResolvers !== server.graphql.initializedTypeCompsers) {
+            if (newComposers + newResolvers !== server.graphql.initializedTypeCompsers) {
                 server.graphql.schema = server.graphql.schemaComposer.buildSchema();
-                server.graphql.initializedTypeCompsers = newComposers+newResolvers;
+                server.graphql.initializedTypeCompsers = newComposers + newResolvers;
             }
 
             return server.graphql.schema;
@@ -66,14 +67,20 @@ export default function initGraphql(p = {}) {
 
                             const modelProperties = tree[key];
 
-                            if (typeof modelProperties === "object" && typeof modelProperties.length === "undefined"){
+                            if (typeof modelProperties === "object" && typeof modelProperties.length === "undefined") {
 
                                 const type = modelProperties.type;
                                 const instance = modelProperties.instance;
                                 const nextKey = (parentKey) ? parentKey + "." + key : key;
 
-                                if (modelProperties.ref){
-                                    relations.push({nextKey, modelProperties: {...modelProperties, many: !!(typeof type === "object" && typeof type.length === "number" && type[0])}})
+                                if (modelProperties.ref) {
+                                    relations.push({
+                                        nextKey,
+                                        modelProperties: {
+                                            ...modelProperties,
+                                            many: !!(typeof type === "object" && typeof type.length === "number" && type[0])
+                                        }
+                                    })
                                 }
 
                                 if (
@@ -86,7 +93,7 @@ export default function initGraphql(p = {}) {
                                         addGraphqlComposeReadOnlyFieldsFilter
                                     } = options;
 
-                                    if (addGraphqlComposeReadOnlyFieldsFilter){
+                                    if (addGraphqlComposeReadOnlyFieldsFilter) {
                                         readOnlyFieldFilters[nextKey] = addGraphqlComposeReadOnlyFieldsFilter;
                                     }
 
@@ -104,21 +111,21 @@ export default function initGraphql(p = {}) {
 
                                     let {required = (modelProperties.required === true)} = options;
 
-                                    if (options.writeCondition === "admin" && required){
-                                        if (parentKey && removeRequiredFromInputArgs.indexOf(parentKey) === -1){
+                                    if (options.writeCondition === "admin" && required) {
+                                        if (parentKey && removeRequiredFromInputArgs.indexOf(parentKey) === -1) {
                                             removeRequiredFromInputArgs.push(parentKey);
                                         }
                                         removeRequiredFromInputArgs.push(nextKey);
                                         Model.schema.paths[key].isRequired = false;
                                     }
 
-                                    if (disabled){
+                                    if (disabled) {
                                         disabledFields.push(nextKey);
                                     }
-                                    if (readOnly){
+                                    if (readOnly) {
                                         readOnlyFields.push(nextKey);
                                     }
-                                    if (addGraphqlComposeReadOnlyFieldsFilter){
+                                    if (addGraphqlComposeReadOnlyFieldsFilter) {
                                         readOnlyFieldFilters[nextKey] = addGraphqlComposeReadOnlyFieldsFilter;
                                     }
 
@@ -126,8 +133,8 @@ export default function initGraphql(p = {}) {
 
                                     projection[key] = {};
 
-                                    if (required){
-                                        if (parentKey && requiredFields.indexOf(parentKey) === -1){
+                                    if (required) {
+                                        if (parentKey && requiredFields.indexOf(parentKey) === -1) {
                                             requiredFields.push(parentKey);
                                         }
                                         requiredFields.push(nextKey);
@@ -168,7 +175,9 @@ export default function initGraphql(p = {}) {
                                 ...Object.fromEntries(Object.keys(resolverFactory).map(function (resolverName) {
                                     return [resolverName, {
                                         record: {
-                                            removeFields: [...readOnlyFields, ...Object.keys(readOnlyFieldFilters).filter((key)=>{return readOnlyFieldFilters[key]({resolverName})})],
+                                            removeFields: [...readOnlyFields, ...Object.keys(readOnlyFieldFilters).filter((key) => {
+                                                return readOnlyFieldFilters[key]({resolverName})
+                                            })],
                                             requiredFields: requiredFields.filter(x => !removeRequiredFromInputArgs.includes(x))
                                         },
                                         filter: {
@@ -200,27 +209,28 @@ export default function initGraphql(p = {}) {
                             value: Model
                         });
 
-                        requiredFields.forEach(function (fieldFullName){
-                            if (fieldFullName && fieldFullName.match(/\./g) && removeRequiredFromInputArgs.indexOf(fieldFullName) === -1){
+                        requiredFields.forEach(function (fieldFullName) {
+                            if (fieldFullName && fieldFullName.match(/\./g) && removeRequiredFromInputArgs.indexOf(fieldFullName) === -1) {
                                 const types = fieldFullName.split(".");
                                 try {
-                                    const field = types[types.length-1];
-                                    const parentType = types.slice(0,-1).join(".");
+                                    const field = types[types.length - 1];
+                                    const parentType = types.slice(0, -1).join(".");
                                     const parentTypeName = parentType.replace(/\../g, function (found) {
                                         return found.slice(-1).toUpperCase();
                                     });
-                                    const ITCName = modelName.slice(0,1).toUpperCase() + modelName.slice(1) + parentTypeName.slice(0,1).toUpperCase() + parentTypeName.slice(1) + "Input";
+                                    const ITCName = modelName.slice(0, 1).toUpperCase() + modelName.slice(1) + parentTypeName.slice(0, 1).toUpperCase() + parentTypeName.slice(1) + "Input";
                                     const ITC = schemaComposer.getITC(ITCName);
                                     ITC.makeRequired(field);
 
-                                    const UpdateITC = schemaComposer.getITC("UpdateById"+ITCName);
+                                    const UpdateITC = schemaComposer.getITC("UpdateById" + ITCName);
                                     UpdateITC.makeRequired(field);
 
-                                } catch (e){}
+                                } catch (e) {
+                                }
                             }
                         });
 
-                        removeRequiredFromInputArgs.forEach(function (key){
+                        removeRequiredFromInputArgs.forEach(function (key) {
                             Model.schema.paths[key].isRequired = true;
                         })
 
@@ -364,7 +374,7 @@ export default function initGraphql(p = {}) {
 
                     }
 
-                } catch (e){
+                } catch (e) {
                     console.log(e)
                 }
 
@@ -375,10 +385,10 @@ export default function initGraphql(p = {}) {
         }
 
         function defaultGenerateFromDatabase() {
-            if (server.database){
+            if (server.database) {
                 Object.keys(server.database).forEach(function (mongoConnectionString) {
                     const models = server.database[mongoConnectionString].models;
-                    if (models){
+                    if (models) {
                         Object.keys(models).forEach(function (modelName) {
                             const Model = models[modelName];
                             server.graphql.composeFromModel({Model});
@@ -397,7 +407,7 @@ export default function initGraphql(p = {}) {
         function defaultMiddleware(req, res, next) {
             server.graphql.init();
             const path = req.wappRequest.path || req.wappRequest.url;
-            if (path.slice(0,route.length) === route){
+            if (path.slice(0, route.length) === route) {
 
                 const globals = wapp.globals;
                 const {DEV} = globals;
@@ -414,26 +424,35 @@ export default function initGraphql(p = {}) {
                     if (typeof query == "string") {
                         const isMutation = query.match("mutation");
                         firstRequestName = query.split("{")[1].split(" ")[(isMutation) ? 0 : 1];
-                        if (firstRequestName.slice(0,1) === "("){
+                        if (firstRequestName.slice(0, 1) === "(") {
                             firstRequestName = firstRequestName.slice(1);
                         }
-                        if (firstRequestName.slice(-1) === ":"){
-                            firstRequestName = firstRequestName.slice(0,-1);
+                        if (firstRequestName.slice(-1) === ":") {
+                            firstRequestName = firstRequestName.slice(0, -1);
                         }
                     }
-                } catch (e){}
+                } catch (e) {
+                }
 
                 wapp.server.middlewares.log(
-                    firstRequestName ? {...req, wappRequest: {...req.wappRequest, url: req.wappRequest.url + "/" + firstRequestName}} : req,
+                    firstRequestName ? {
+                        ...req,
+                        wappRequest: {...req.wappRequest, url: req.wappRequest.url + "/" + firstRequestName}
+                    } : req,
                     res,
-                    function (){
+                    function () {
 
-                        graphqlHTTP({
+                        if (DEV && req.wappRequest.method === 'GET') {
+                            res.send(renderGraphiQL({options: { url: route }}));
+                            return;
+                        }
+
+                        const handler = createHandler({
                             schema: schema,
-                            context: {req, res, wapp},
-                            graphiql: DEV,
-                            pretty: !DEV,
-                        })(req, res, next);
+                            context: () => ({ req, res, wapp }),
+                        });
+
+                        handler(req, res, next)
 
                     });
 
@@ -495,44 +514,55 @@ export default function initGraphql(p = {}) {
                             const graphql = res.wappResponse.store.getState("res.graphql");
 
                             if (!graphql) {
-                                const graphqlState = {};
-                                if (server.graphql.resolvers) {
 
-                                    Object.keys(server.graphql.resolvers).forEach(function (TCName) {
+                                let graphqlState = server.graphql.stateToClient;
 
-                                        Object.keys(server.graphql.resolvers[TCName]).forEach(function (resolverName) {
+                                if (!graphqlState) {
 
-                                            const resolver = server.graphql.resolvers[TCName][resolverName];
+                                    graphqlState = {};
 
-                                            if (!resolver.internal) {
+                                    if (server.graphql.resolvers) {
 
-                                                tryCreateDefaultToClient({
-                                                    resolver,
-                                                    DEV: wapp.globals.DEV,
-                                                    GraphQLSchema: server.graphql.schema,
-                                                    schemaComposer,
-                                                    Model: server.graphql.TypeComposers[TCName].Model,
-                                                    getModel: (TCName) => {
-                                                        return server.graphql.TypeComposers[TCName]?.Model
-                                                    }
-                                                });
+                                        Object.keys(server.graphql.resolvers).forEach(function (TCName) {
 
-                                            }
+                                            Object.keys(server.graphql.resolvers[TCName]).forEach(function (resolverName) {
 
-                                            if (resolver.toClient) {
+                                                const resolver = server.graphql.resolvers[TCName][resolverName];
 
-                                                const type = resolver.kind;
-                                                const requestName = resolver.requestName;
+                                                if (!resolver.internal) {
 
-                                                if (!graphqlState[type]) {
-                                                    graphqlState[type] = {};
+                                                    tryCreateDefaultToClient({
+                                                        resolver,
+                                                        DEV: wapp.globals.DEV,
+                                                        GraphQLSchema: server.graphql.schema,
+                                                        schemaComposer,
+                                                        Model: server.graphql.TypeComposers[TCName].Model,
+                                                        getModel: (TCName) => {
+                                                            return server.graphql.TypeComposers[TCName]?.Model
+                                                        }
+                                                    });
+
                                                 }
 
-                                                graphqlState[type][requestName] = resolver.toClient();
+                                                if (resolver.toClient) {
 
-                                            }
+                                                    const type = resolver.kind;
+                                                    const requestName = resolver.requestName;
+
+                                                    if (!graphqlState[type]) {
+                                                        graphqlState[type] = {};
+                                                    }
+
+                                                    graphqlState[type][requestName] = resolver.toClient();
+
+                                                }
+                                            })
+
                                         })
-                                    })
+
+                                    }
+
+                                    server.graphql.stateToClient = graphqlState
 
                                 }
 
@@ -559,7 +589,7 @@ export default function initGraphql(p = {}) {
 
         function defaultAddResolver(p = {}) {
             const {TCName, resolverName, resolver} = p;
-            if (resolverName && TCName && resolver){
+            if (resolverName && TCName && resolver) {
                 if (!server.graphql.resolvers[TCName]) {
                     server.graphql.resolvers[TCName] = {};
                 }
@@ -569,7 +599,7 @@ export default function initGraphql(p = {}) {
 
         function defaultAddResolversToTC(p = {}) {
             const {TCName, resolvers} = p;
-            if (resolvers && TCName){
+            if (resolvers && TCName) {
                 if (!server.graphql.resolvers[TCName]) {
                     server.graphql.resolvers[TCName] = {};
                 }
@@ -588,7 +618,7 @@ export default function initGraphql(p = {}) {
             const resolvers = server.graphql.resolvers;
             const schemaComposer = server.graphql.schemaComposer;
 
-            Object.keys(resolvers).forEach(function (TCName, i){
+            Object.keys(resolvers).forEach(function (TCName, i) {
 
                 const TC = server.graphql.TypeComposers[TCName];
                 const resolversForTC = server.graphql.resolvers[TCName];
@@ -604,14 +634,14 @@ export default function initGraphql(p = {}) {
                             resolversForTC[resolverName] = resolverProperties;
                         }
 
-                        if (!resolversForTC[resolverName].initialized){
+                        if (!resolversForTC[resolverName].initialized) {
 
                             if (typeof resolverProperties["args"] == "function") {
                                 resolverProperties["args"] = resolverProperties["args"](TC, schemaComposer)
                             }
 
-                            const capitalizedResolverName = resolverName.slice(0,1).toUpperCase()+resolverName.slice(1);
-                            const TCLowerName = TCName.slice(0,1).toLowerCase() + TCName.slice(1);
+                            const capitalizedResolverName = resolverName.slice(0, 1).toUpperCase() + resolverName.slice(1);
+                            const TCLowerName = TCName.slice(0, 1).toLowerCase() + TCName.slice(1);
                             const requestName = TCLowerName + capitalizedResolverName;
 
                             resolverProperties.requestName = requestName;
@@ -647,7 +677,7 @@ export default function initGraphql(p = {}) {
                                 value: true
                             });
 
-                            if (resolverProperties.wapplr){
+                            if (resolverProperties.wapplr) {
                                 Object.defineProperty(resolversForTC[resolverName], "wapplr", {
                                     ...defaultDescriptor,
                                     enumerable: false,
@@ -665,7 +695,7 @@ export default function initGraphql(p = {}) {
 
         }
 
-        const defaultGraphqlObject =  Object.create(Object.prototype, {
+        const defaultGraphqlObject = Object.create(Object.prototype, {
             TypeComposers: {
                 ...defaultDescriptor,
                 writable: false,
@@ -724,7 +754,12 @@ export default function initGraphql(p = {}) {
             value: defaultGraphqlObject
         });
 
-        Object.defineProperty(server.graphql, "wapp", {...defaultDescriptor, writable: false, enumerable: false, value: wapp});
+        Object.defineProperty(server.graphql, "wapp", {
+            ...defaultDescriptor,
+            writable: false,
+            enumerable: false,
+            value: wapp
+        });
 
     }
 
