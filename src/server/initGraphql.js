@@ -1,11 +1,12 @@
-import {deCapitalize, defaultDescriptor} from "../common/utils";
-import tryCreateDefaultToClient from "./tryCreateDefaultToClient";
-import {createRequests} from "../common";
-
 import {createHandler} from "graphql-http/lib/use/express";
 import {SchemaComposer} from "graphql-compose";
 import {composeWithMongoose, resolverFactory} from "graphql-compose-mongoose";
+
 import renderGraphiQL from "./renderGraphiQl"
+
+import {deCapitalize, defaultDescriptor} from "../common/utils";
+import {createRequests} from "../common";
+import tryCreateDefaultToClient from "./tryCreateDefaultToClient";
 
 export default function initGraphql(p = {}) {
 
@@ -412,6 +413,12 @@ export default function initGraphql(p = {}) {
                 const globals = wapp.globals;
                 const {DEV} = globals;
 
+                const supportedMethod = (DEV && req.wappRequest.method === 'GET') || (req.wappRequest.method === 'POST');
+
+                if (!supportedMethod) {
+                    return next();
+                }
+
                 const schema = server.graphql.schema;
 
                 if (!schema) {
@@ -447,18 +454,31 @@ export default function initGraphql(p = {}) {
                             return;
                         }
 
-                        const handler = createHandler({
-                            schema: schema,
-                            context: () => ({ req, res, wapp }),
-                        });
+                        if (req.wappRequest.method === 'POST') {
+                            const handler = createHandler({
+                                schema: schema,
+                                context: () => ({req, res, wapp}),
+                                ...req.body?.variables?.upload ? {
+                                    parseRequestParams: async ()=>{
+                                        return {
+                                            ...req.body,
+                                        }
+                                    }
+                                } : {}
+                            });
+                            handler(req, res, next);
+                            return;
+                        }
 
-                        handler(req, res, next)
+                        next()
 
-                    });
+                    }
+                );
 
                 return;
 
             }
+
             return next();
         }
 

@@ -4,10 +4,10 @@
     "license": "MIT",
     "dependencies": {
         "wapplr": "^1.0.0",
-        "graphql": "^15.4.0",
+        "graphql": "^16.10.0",
         "graphql-http": "^1.22.4",
-        "graphql-compose": "^7.22.1",
-        "graphql-compose-mongoose": "^9.1.0",
+        "graphql-compose": "^9.1.0",
+        "graphql-compose-mongoose": "^10.0.0",
         "gql-query-builder": "^3.5.5"
     },
     "devDependencies": {
@@ -27,7 +27,7 @@
         "wapplr-graphql build": "wapplr-cli build",
         "wapplr-graphql clean": "wapplr-cli clean"
     },
-    "version": "1.0.73",
+    "version": "1.0.74",
     "files": [
         "dist/*"
     ],
